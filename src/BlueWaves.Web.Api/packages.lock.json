@@ -283,6 +283,27 @@
         "resolved": "1.2.3",
         "contentHash": "Nug3rO+7Kl5/SBAadzSMAVgqDlfGjJZ0GenQrLywJ84XGKO0uRqkunz5Wyl0SDwcR71bAATXvSdbdzPrYRYKGw=="
       },
+      "NetTopologySuite": {
+        "type": "Transitive",
+        "resolved": "2.0.0",
+        "contentHash": "3ajBClEI9wx2/DjjGmV52sHW1m52vLg8sdz1pJbTf5ySj1X90qehQs3v1DRwGo0F8UKj/Z2SjNhRN/6LroAkqg==",
+        "dependencies": {
+          "System.Memory": "4.5.3"
+        }
+      },
+      "NetTopologySuite.IO.PostGis": {
+        "type": "Transitive",
+        "resolved": "2.0.0",
+        "contentHash": "f4PAE9VTUfM8w+SOlFcsvn5/S9e5SQywmEPsCMAVgfiemwHw9NKSB4Jnn4+U/jl5hN9tUutHxpHnOUx2Pqm6Ew==",
+        "dependencies": {
+          "NetTopologySuite": "[2.0.0, 3.0.0-A)"
+        }
+      },
+      "Newtonsoft.Json": {
+        "type": "Transitive",
+        "resolved": "12.0.3",
+        "contentHash": "6mgjfnRB4jKMlzHSl+VD+oUc1IebOZabkbyWj2RiTgWwYPPuaK1H97G1sHqGwPlS5npiF5Q0OrxN1wni2n5QWg=="
+      },
       "Npgsql": {
         "type": "Transitive",
         "resolved": "5.0.1.1",
@@ -300,6 +321,33 @@
           "Microsoft.EntityFrameworkCore.Abstractions": "5.0.1",
           "Microsoft.EntityFrameworkCore.Relational": "5.0.1",
           "Npgsql": "5.0.1.1"
+        }
+      },
+      "Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite": {
+        "type": "Transitive",
+        "resolved": "5.0.1",
+        "contentHash": "c9vYC6InWG1AsoNi5W0+hurnzafUkT74Arikbp7HYiTgrilOEy8QyffiCh22YfV1jyTkxV54hk9q1uOVY6rHdw==",
+        "dependencies": {
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "5.0.1",
+          "Npgsql.NetTopologySuite": "5.0.1.1"
+        }
+      },
+      "Npgsql.NetTopologySuite": {
+        "type": "Transitive",
+        "resolved": "5.0.1.1",
+        "contentHash": "R5C2Mla5GrDpZqI5O8T+BC1ZzVdTbwao6lNuxZMrZ+5pUbKdjZkB2yh1+fj8OcFz2EWHQEyO9bfje9zaJxt70g==",
+        "dependencies": {
+          "NetTopologySuite.IO.PostGIS": "2.0.0",
+          "Npgsql": "5.0.1.1"
+        }
+      },
+      "Refit": {
+        "type": "Transitive",
+        "resolved": "5.2.4",
+        "contentHash": "9hRMF4Nu8KbbSfY9IgBPuf/F9zjZNa1iPQ81fWuJ1thYtIOFILuUI6OTNmdZCv9rWlyPKTwN8vTqZuoGVjbAiA==",
+        "dependencies": {
+          "Newtonsoft.Json": "12.0.3",
+          "System.Text.Json": "4.7.2"
         }
       },
       "Swashbuckle.AspNetCore.Swagger": {
@@ -347,6 +395,11 @@
           "Microsoft.IdentityModel.Tokens": "6.7.1"
         }
       },
+      "System.Memory": {
+        "type": "Transitive",
+        "resolved": "4.5.3",
+        "contentHash": "3oDzvc/zzetpTKWMShs1AADwZjQ/36HnsufHRPcOjyRAAMLDlu2iD33MBI2opxnezcVUtXyqDXXjoFMOU9c7SA=="
+      },
       "System.Runtime.CompilerServices.Unsafe": {
         "type": "Transitive",
         "resolved": "4.6.0",
@@ -357,11 +410,23 @@
         "resolved": "4.5.0",
         "contentHash": "WG3r7EyjUe9CMPFSs6bty5doUqT+q9pbI80hlNzo2SkPkZ4VTuZkGWjpp77JB8+uaL4DFPRdBsAY+DX3dBK92A=="
       },
+      "System.Text.Json": {
+        "type": "Transitive",
+        "resolved": "4.7.2",
+        "contentHash": "TcMd95wcrubm9nHvJEQs70rC0H/8omiSGGpU4FQ/ZA1URIqD4pjmFJh2Mfv1yH1eHgJDWTi2hMDXwTET+zOOyg=="
+      },
       "bluewaves.persistence": {
         "type": "Project",
         "dependencies": {
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "5.0.1",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "5.0.1"
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "5.0.1",
+          "Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite": "5.0.1"
+        }
+      },
+      "bluewaves.web.models": {
+        "type": "Project",
+        "dependencies": {
+          "Refit": "5.2.4"
         }
       }
     }

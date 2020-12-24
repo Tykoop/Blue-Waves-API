@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BlueWaves.Persistence\BlueWaves.Persistence.csproj" />
+    <ProjectReference Include="..\BlueWaves.Web.Models\BlueWaves.Web.Models.csproj" />
   </ItemGroup>
 
 </Project>

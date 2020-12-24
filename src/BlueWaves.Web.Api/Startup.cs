@@ -1,5 +1,8 @@
 namespace Esentis.BlueWaves.Web.Api
 {
+	using Esentis.BlueWaves.Persistence;
+	using Esentis.BlueWaves.Persistence.Helpers;
+
 	using Microsoft.AspNetCore.Builder;
 	using Microsoft.AspNetCore.Hosting;
 	using Microsoft.EntityFrameworkCore;
@@ -8,8 +11,6 @@ namespace Esentis.BlueWaves.Web.Api
 	using Microsoft.Extensions.DependencyInjection;
 	using Microsoft.Extensions.Hosting;
 	using Microsoft.OpenApi.Models;
-
-	using Persistence;
 
 	public class Startup
 	{
@@ -27,10 +28,19 @@ namespace Esentis.BlueWaves.Web.Api
 		public void ConfigureServices(IServiceCollection services)
 		{
 			var isDevelopment = Environment.IsDevelopment();
-
+			var timeStampInterceptor = new TimeStampSaveChangesInterceptor();
 			services.AddDbContextPool<BlueWavesDbContext>(options =>
 			{
-				options.UseNpgsql(Configuration.GetConnectionString("DbContextBW"))
+				options.UseNpgsql(
+						Configuration.GetConnectionString("BlueWavesApi"),
+						options =>
+						{
+							options.EnableRetryOnFailure()
+								.SetPostgresVersion(12, 3)
+								.UseNetTopologySuite()
+								.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+						})
+					.AddInterceptors(timeStampInterceptor)
 					.EnableSensitiveDataLogging(isDevelopment)
 					.EnableDetailedErrors(isDevelopment)
 					.ConfigureWarnings(warn => warn
