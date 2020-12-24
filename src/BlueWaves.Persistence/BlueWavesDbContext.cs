@@ -3,6 +3,7 @@ namespace Esentis.BlueWaves.Persistence
 	using System;
 
 	using Esentis.BlueWaves.Persistence.Identity;
+	using Esentis.BlueWaves.Persistence.Model;
 
 	using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 	using Microsoft.EntityFrameworkCore;
@@ -10,12 +11,22 @@ namespace Esentis.BlueWaves.Persistence
 
 	public class BlueWavesDbContext : IdentityDbContext<BlueWavesUser, BlueWavesRole, Guid>
 	{
-		private readonly ILoggerFactory loggerFactory;
-
-		public BlueWavesDbContext(DbContextOptions<BlueWavesDbContext> options, ILoggerFactory? factory = null)
+		public BlueWavesDbContext(DbContextOptions<BlueWavesDbContext> options)
 			: base(options)
 		{
-			loggerFactory = factory ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
+		}
+
+		public DbSet<Beach> Beaches { get; init; }
+
+		/// <inheritdoc />
+		protected override void OnModelCreating(ModelBuilder builder)
+		{
+			base.OnModelCreating(builder);
+
+			//builder.Entity<Beach>(x =>
+			//{
+			//	x.Property(y => y.Coordinates).HasColumnType("geometry (point)");
+			//});
 		}
 	}
 }
