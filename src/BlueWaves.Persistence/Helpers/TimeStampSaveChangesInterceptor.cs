@@ -23,6 +23,7 @@ namespace Esentis.BlueWaves.Persistence.Helpers
 			foreach (var entry in entries.Where(x => x.State == EntityState.Added))
 			{
 				entry.Entity.CreatedAt = now;
+				entry.Entity.UpdatedAt = now;
 			}
 
 			foreach (var entry in entries.Where(x => x.State == EntityState.Modified))
@@ -43,6 +44,7 @@ namespace Esentis.BlueWaves.Persistence.Helpers
 			foreach (var entry in entries.Where(x => x.State == EntityState.Added))
 			{
 				entry.Entity.CreatedAt = now;
+				entry.Entity.UpdatedAt = now;
 			}
 
 			foreach (var entry in entries.Where(x => x.State == EntityState.Modified))
