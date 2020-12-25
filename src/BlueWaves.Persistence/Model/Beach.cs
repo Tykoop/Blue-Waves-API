@@ -9,6 +9,8 @@ namespace Esentis.BlueWaves.Persistence.Model
 	{
 		public string Name { get; set; }
 
+		public string Description { get; set; }
+
 		public Point Coordinates { get; set; }
 
 	}
