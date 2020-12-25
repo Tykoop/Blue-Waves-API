@@ -31,7 +31,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 
 			var beach = await Context.Beaches.SingleOrDefaultAsync(x => x.Id == id, cancellationToken: token);
 			var result = new BeachDto(Id: beach.Id, Name: beach.Name, Latitude: beach.Coordinates.X,
-				Longtitude: beach.Coordinates.Y);
+				Longtitude: beach.Coordinates.Y, Description: beach.Description);
 			return beach == null
 				? NotFound()
 				: Ok(result);
