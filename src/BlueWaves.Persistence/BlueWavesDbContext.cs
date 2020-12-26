@@ -18,6 +18,10 @@ namespace Esentis.BlueWaves.Persistence
 
 		public DbSet<Beach> Beaches { get; init; }
 
+		public DbSet<Favorite> Favorites { get; init; }
+
+		public DbSet<Rating> Ratings { get; init; }
+
 		/// <inheritdoc />
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
