@@ -17,12 +17,13 @@ namespace Esentis.BlueWaves.Web.Api
 		public static async Task Main(string[] args)
 		{
 			var host = CreateHostBuilder(args).Build();
-			var scope = host.Services.CreateScope();
-			var ctx = scope.ServiceProvider.GetRequiredService<BlueWavesDbContext>();
-			await ctx.Database.MigrateAsync();
-			var beach = new Beach { Coordinates = new Point(20, 20), Name = "Armenistis" };
-			ctx.Beaches.Add(beach);
-			await ctx.SaveChangesAsync();
+
+			// var scope = host.Services.CreateScope();
+			// var ctx = scope.ServiceProvider.GetRequiredService<BlueWavesDbContext>();
+			// await ctx.Database.MigrateAsync();
+			// var beach = new Beach { Coordinates = new Point(20, 20), Name = "Armenistis" };
+			// ctx.Beaches.Add(beach);
+			// await ctx.SaveChangesAsync();
 			await host.RunAsync();
 		}
 

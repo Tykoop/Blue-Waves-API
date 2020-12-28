@@ -27,10 +27,10 @@ namespace Esentis.BlueWaves.Persistence
 		{
 			base.OnModelCreating(builder);
 
-			//builder.Entity<Beach>(x =>
-			//{
-			//	x.Property(y => y.Coordinates).HasColumnType("geometry (point)");
-			//});
+			// builder.Entity<Beach>(x =>
+			// {
+			// x.Property(y => y.Coordinates).HasColumnType("geometry (point)");
+			// });
 		}
 	}
 }

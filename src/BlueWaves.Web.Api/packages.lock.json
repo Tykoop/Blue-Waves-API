@@ -418,6 +418,7 @@
       "bluewaves.persistence": {
         "type": "Project",
         "dependencies": {
+          "BlueWaves.Web.Models": "1.0.0",
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "5.0.1",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "5.0.1",
           "Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite": "5.0.1"

@@ -212,6 +212,11 @@
           "NetTopologySuite": "[2.0.0, 3.0.0-A)"
         }
       },
+      "Newtonsoft.Json": {
+        "type": "Transitive",
+        "resolved": "12.0.3",
+        "contentHash": "6mgjfnRB4jKMlzHSl+VD+oUc1IebOZabkbyWj2RiTgWwYPPuaK1H97G1sHqGwPlS5npiF5Q0OrxN1wni2n5QWg=="
+      },
       "Npgsql": {
         "type": "Transitive",
         "resolved": "5.0.1.1",
@@ -227,6 +232,15 @@
         "dependencies": {
           "NetTopologySuite.IO.PostGIS": "2.0.0",
           "Npgsql": "5.0.1.1"
+        }
+      },
+      "Refit": {
+        "type": "Transitive",
+        "resolved": "5.2.4",
+        "contentHash": "9hRMF4Nu8KbbSfY9IgBPuf/F9zjZNa1iPQ81fWuJ1thYtIOFILuUI6OTNmdZCv9rWlyPKTwN8vTqZuoGVjbAiA==",
+        "dependencies": {
+          "Newtonsoft.Json": "12.0.3",
+          "System.Text.Json": "4.7.2"
         }
       },
       "System.Collections.Immutable": {
@@ -253,6 +267,17 @@
         "type": "Transitive",
         "resolved": "4.6.0",
         "contentHash": "HxozeSlipUK7dAroTYwIcGwKDeOVpQnJlpVaOkBz7CM4TsE5b/tKlQBZecTjh6FzcSbxndYaxxpsBMz+wMJeyw=="
+      },
+      "System.Text.Json": {
+        "type": "Transitive",
+        "resolved": "4.7.2",
+        "contentHash": "TcMd95wcrubm9nHvJEQs70rC0H/8omiSGGpU4FQ/ZA1URIqD4pjmFJh2Mfv1yH1eHgJDWTi2hMDXwTET+zOOyg=="
+      },
+      "bluewaves.web.models": {
+        "type": "Project",
+        "dependencies": {
+          "Refit": "5.2.4"
+        }
       }
     }
   }
