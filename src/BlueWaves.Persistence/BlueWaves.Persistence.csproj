@@ -10,4 +10,8 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.NetTopologySuite" Version="5.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\BlueWaves.Web.Models\BlueWaves.Web.Models.csproj" />
+  </ItemGroup>
+
 </Project>
