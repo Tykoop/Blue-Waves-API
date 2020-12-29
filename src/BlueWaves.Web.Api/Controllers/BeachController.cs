@@ -1,7 +1,5 @@
 namespace Esentis.BlueWaves.Web.Api.Controllers
 {
-	using System;
-	using System.Collections.Generic;
 	using System.Linq;
 	using System.Threading;
 	using System.Threading.Tasks;
@@ -18,22 +16,49 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 
 	using NetTopologySuite.Geometries;
 
-
 	[Route("api/beach")]
 	public class BeachController : BaseController<BeachController>
 	{
-
 		public BeachController(ILogger<BeachController> logger, BlueWavesDbContext ctx)
 			: base(logger, ctx)
 		{
+		}
+
+		[HttpGet("")]
+		public async Task<ActionResult<PagedResult<BeachDto>>> GetMovies([PositiveNumberValidator] int page, [ItemPerPageValidator] int itemsPerPage)
+		{
+			var toSkip = itemsPerPage * (page - 1);
+			var beaches = Context.Beaches
+				.TagWith("Retrieving all beaches")
+				.OrderBy(x => x.Id);
+
+			var totalBeaches = await beaches.CountAsync();
+			if (page > ((totalBeaches / itemsPerPage) + 1))
+			{
+				return BadRequest("Page doesn't exist");
+			}
+
+			var pagedBeaches = await beaches
+				.Skip(toSkip)
+				.Take(itemsPerPage)
+				.ToListAsync();
+			var result = new PagedResult<BeachDto>
+			{
+				Results = pagedBeaches.Select(x => x.toDto()).ToList(),
+				Page = page,
+				TotalPages = (totalBeaches / itemsPerPage) + 1,
+				TotalElements = totalBeaches,
+			};
+			Logger.LogInformation(BWLogTemplates.RequestEntities, nameof(Beach), totalBeaches);
+			return Ok(result);
 		}
 
 		[HttpGet("{id}")]
 		public async Task<ActionResult<Beach>> GetBeach(long id, CancellationToken token = default)
 		{
 			var beach = await Context.Beaches.SingleOrDefaultAsync(x => x.Id == id, cancellationToken: token);
-			var result = new BeachDto(Id: beach.Id, Name: beach.Name, Latitude: beach.Coordinates.X,
-				Longtitude: beach.Coordinates.Y, Description: beach.Description);
+			var result = new BeachDto(Id: beach.Id, Name: beach.Name, Latitude: beach.Coordinates.X, Longtitude: beach.Coordinates.Y, Description: beach.Description);
+			Logger.LogInformation(BWLogTemplates.RequestEntity, nameof(Beach), id);
 			return beach == null
 				? NotFound()
 				: Ok(result);
