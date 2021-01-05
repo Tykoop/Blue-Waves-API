@@ -7,10 +7,12 @@ namespace Esentis.BlueWaves.Web.Api.Helpers
 
 	using Esentis.BlueWaves.Persistence;
 
+	using Microsoft.AspNetCore.Authorization;
 	using Microsoft.AspNetCore.Mvc;
 	using Microsoft.Extensions.Logging;
 
 	[ApiController]
+	[Authorize]
 	public abstract class BaseController<T> : ControllerBase
 	where T : BaseController<T>
 	{

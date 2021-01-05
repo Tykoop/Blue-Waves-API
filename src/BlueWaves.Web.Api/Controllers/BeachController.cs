@@ -1,6 +1,7 @@
 namespace Esentis.BlueWaves.Web.Api.Controllers
 {
 	using System.Linq;
+	using System.Security.Claims;
 	using System.Threading;
 	using System.Threading.Tasks;
 
@@ -10,6 +11,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 	using Esentis.BlueWaves.Web.Api.Helpers;
 	using Esentis.BlueWaves.Web.Models;
 
+	using Microsoft.AspNetCore.Authorization;
 	using Microsoft.AspNetCore.Mvc;
 	using Microsoft.EntityFrameworkCore;
 	using Microsoft.Extensions.Logging;
@@ -24,12 +26,18 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		{
 		}
 
+		/// <summary>
+		/// Gets all Beachess.
+		/// </summary>
+		/// <returns></returns>
 		[HttpGet("")]
+		// [AllowAnonymous]
 		public async Task<ActionResult<PagedResult<BeachDto>>> GetMovies([PositiveNumberValidator] int page, [ItemPerPageValidator] int itemsPerPage)
 		{
+			var user = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 			var toSkip = itemsPerPage * (page - 1);
 			var beaches = Context.Beaches
-				.TagWith("Retrieving all beaches")
+				.TagWith($"Retrieving all beaches for user {user}")
 				.OrderBy(x => x.Id);
 
 			var totalBeaches = await beaches.CountAsync();
