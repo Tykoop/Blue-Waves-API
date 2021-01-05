@@ -2,6 +2,16 @@
   "version": 1,
   "dependencies": {
     ".NETCoreApp,Version=v5.0": {
+      "Kritikos.Configuration.Persistence": {
+        "type": "Direct",
+        "requested": "[0.3.0-alpha.6, )",
+        "resolved": "0.3.0-alpha.6",
+        "contentHash": "V0SpspGP665uFvjrdAO6bk4e7ZM6K6UQgj0JDtbjT4Hub1/h9L8A0MWEsj47H7gCSOj1txb5q/vSXy8zqk271A==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "5.0.1",
+          "System.ComponentModel.Annotations": "5.0.0"
+        }
+      },
       "Microsoft.AspNetCore.Identity.EntityFrameworkCore": {
         "type": "Direct",
         "requested": "[5.0.1, )",
