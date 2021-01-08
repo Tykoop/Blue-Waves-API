@@ -7,11 +7,13 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 
 	using Esentis.BlueWaves.Persistence;
 	using Esentis.BlueWaves.Persistence.Helpers;
+	using Esentis.BlueWaves.Persistence.Identity;
 	using Esentis.BlueWaves.Persistence.Model;
 	using Esentis.BlueWaves.Web.Api.Helpers;
 	using Esentis.BlueWaves.Web.Models;
 
 	using Microsoft.AspNetCore.Authorization;
+	using Microsoft.AspNetCore.Identity;
 	using Microsoft.AspNetCore.Mvc;
 	using Microsoft.EntityFrameworkCore;
 	using Microsoft.Extensions.Logging;
@@ -21,9 +23,13 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 	[Route("api/beach")]
 	public class BeachController : BaseController<BeachController>
 	{
-		public BeachController(ILogger<BeachController> logger, BlueWavesDbContext ctx)
+		private readonly UserManager<BlueWavesUser> userManager;
+
+		public BeachController(ILogger<BeachController> logger, BlueWavesDbContext ctx,
+			RoleManager<BlueWavesRole> roleManager, UserManager<BlueWavesUser> userManager)
 			: base(logger, ctx)
 		{
+			this.userManager = userManager;
 		}
 
 		/// <summary>
@@ -75,10 +81,34 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		[HttpPost("add")]
 		public async Task<ActionResult<BeachDto>> AddBeach(AddBeachDto addBeachDto)
 		{
-			var beach = new Beach { Coordinates = new Point(addBeachDto.Latitude, addBeachDto.Longtitude), Name = addBeachDto.Name, Description = addBeachDto.Description };
+			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+			var user = await userManager.FindByIdAsync(userId);
+			if (user == null)
+			{
+				return BadRequest("Something went wrong");
+			}
+			var beach = new Beach { Coordinates = new Point(addBeachDto.Latitude, addBeachDto.Longtitude), Name = addBeachDto.Name, Description = addBeachDto.Description, AddedBy = user };
 			Context.Beaches.Add(beach);
 			await Context.SaveChangesAsync();
 			return Ok(beach.toDto());
+		}
+
+		[HttpDelete("{id}")]
+		public async Task<ActionResult> DeleteBeach(long id)
+		{
+			var beach = await Context.Beaches.SingleOrDefaultAsync(x => x.Id == id);
+			if (beach == null)
+			{
+				Logger.LogInformation(BWLogTemplates.NotFound, nameof(Beach));
+				return NotFound("Beach not found");
+			}
+
+			// Removes all ratings associated with the Beach
+			Context.Ratings.RemoveRange(Context.Ratings.Where(x => x.Beach == beach));
+			Context.Beaches.Remove(beach);
+			await Context.SaveChangesAsync();
+			Logger.LogInformation(BWLogTemplates.Deleted, nameof(Beach), id);
+			return Ok("Beach deleted");
 		}
 	}
 }
