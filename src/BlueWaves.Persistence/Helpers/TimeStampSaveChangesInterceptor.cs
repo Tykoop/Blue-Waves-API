@@ -7,7 +7,7 @@ namespace Esentis.BlueWaves.Persistence.Helpers
 	using System.Threading;
 	using System.Threading.Tasks;
 
-	using Abstractions;
+	using Kritikos.Configuration.Persistence.Abstractions;
 
 	using Microsoft.EntityFrameworkCore;
 	using Microsoft.EntityFrameworkCore.Diagnostics;

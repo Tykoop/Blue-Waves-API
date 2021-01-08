@@ -2,7 +2,7 @@ namespace Esentis.BlueWaves.Persistence.Base
 {
 	using System;
 
-	using Esentis.BlueWaves.Persistence.Abstractions;
+	using Kritikos.Configuration.Persistence.Abstractions;
 
 	public abstract class Entity<TKey> : IEntity<TKey>, ITimestamped
 		where TKey : IComparable, IComparable<TKey>, IEquatable<TKey>

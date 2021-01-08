@@ -2,7 +2,7 @@ namespace Esentis.BlueWaves.Persistence.Identity
 {
 	using System;
 
-	using Esentis.BlueWaves.Persistence.Abstractions;
+	using Kritikos.Configuration.Persistence.Abstractions;
 
 	using Microsoft.AspNetCore.Identity;
 
