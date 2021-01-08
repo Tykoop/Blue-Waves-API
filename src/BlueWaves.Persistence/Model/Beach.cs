@@ -2,6 +2,7 @@ namespace Esentis.BlueWaves.Persistence.Model
 {
 
 	using Esentis.BlueWaves.Persistence.Base;
+	using Esentis.BlueWaves.Persistence.Identity;
 
 	using NetTopologySuite.Geometries;
 
@@ -12,6 +13,8 @@ namespace Esentis.BlueWaves.Persistence.Model
 		public string Description { get; set; }
 
 		public Point Coordinates { get; set; }
+
+		public BlueWavesUser AddedBy { get; set; }
 
 	}
 }
