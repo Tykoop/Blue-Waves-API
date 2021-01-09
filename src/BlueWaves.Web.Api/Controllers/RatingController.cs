@@ -65,7 +65,13 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				return BadRequest("Something went wrong");
 			}
 
-			var ratings = await Context.Ratings.Where(x => x.User.Id == user.Id).ToListAsync();
+			var ratings = await Context.Ratings.Include(x => x.Beach).Where(x => x.User.Id == user.Id).Select(x =>
+				new
+				{
+					x.Beach.Name,
+					x.Rate,
+					x.CreatedAt,
+				}).ToListAsync();
 			return Ok(ratings);
 		}
 
