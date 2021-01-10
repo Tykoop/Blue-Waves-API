@@ -22,6 +22,10 @@ namespace Esentis.BlueWaves.Persistence
 
 		public DbSet<Rating> Ratings { get; init; }
 
+		public DbSet<Continent> Continents { get; init; }
+
+		public DbSet<Country> Countries { get; init; }
+
 		/// <inheritdoc />
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
