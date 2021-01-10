@@ -16,5 +16,6 @@ namespace Esentis.BlueWaves.Persistence.Model
 
 		public BlueWavesUser AddedBy { get; set; }
 
+		public Country Country { get; set; }
 	}
 }
