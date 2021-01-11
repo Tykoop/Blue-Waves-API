@@ -50,7 +50,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			if (favorite == null)
 			{
 				favorite = new Favorite { Beach = beach, User = user };
-				await Context.Favorites.AddAsync(favorite, cancellationToken: token);
+				await Context.Favorites.AddAsync(favorite, token);
 				await Context.SaveChangesAsync();
 				return Ok("Beach added to favorites");
 			}
@@ -58,6 +58,32 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			Context.Favorites.Remove(favorite);
 			await Context.SaveChangesAsync();
 			return Ok("Beach removed from favorites");
+		}
+
+		[HttpPost("check")]
+		public async Task<ActionResult<Rating>> IsFavorited(long beachId, CancellationToken token = default)
+		{
+			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+			var user = await userManager.FindByIdAsync(userId);
+			if (user == null)
+			{
+				return BadRequest("Something went wrong");
+			}
+
+			var beach = await Context.Beaches.FirstOrDefaultAsync(x => x.Id == beachId, token);
+			if (beach == null)
+			{
+				return NotFound("Beach not found");
+			}
+
+			var rating = await Context.Favorites.SingleOrDefaultAsync(x => x.User == user && x.Beach == beach);
+
+			if (rating == null)
+			{
+				return NotFound("Beach is not favorited");
+			}
+
+			return Ok("Beach is favorited");
 		}
 	}
 }
