@@ -42,10 +42,16 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				return BadRequest("Something went wrong");
 			}
 
-			var beach = await Context.Beaches.FirstOrDefaultAsync(x => x.Id == addRatingDto.BeachId, cancellationToken: token);
+			var beach = await Context.Beaches.FirstOrDefaultAsync(x => x.Id == addRatingDto.BeachId, token);
 			if (beach == null)
 			{
 				return NotFound("Beach not found");
+			}
+
+			var hasRated = await Context.Ratings.AnyAsync(x => x.User == user && x.Beach == beach, token);
+			if (hasRated)
+			{
+				return BadRequest("You have already rated the beach");
 			}
 
 			var rating = new Rating { Beach = beach, User = user, Rate = addRatingDto.Rate };
@@ -65,13 +71,11 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				return BadRequest("Something went wrong");
 			}
 
-			var ratings = await Context.Ratings.Include(x => x.Beach).Where(x => x.User.Id == user.Id).Select(x =>
-				new
-				{
-					x.Beach.Name,
-					x.Rate,
-					x.CreatedAt,
-				}).ToListAsync();
+			var ratings = await Context.Ratings.Include(x => x.Beach)
+				.Where(x => x.User.Id == user.Id)
+				.Select(x =>
+					new { x.Beach.Name, x.Rate, x.CreatedAt, })
+				.ToListAsync();
 			return Ok(ratings);
 		}
 
@@ -89,6 +93,36 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			await Context.SaveChangesAsync();
 			Logger.LogInformation(BWLogTemplates.Deleted, nameof(Rating), id);
 			return Ok("Rating successfully deleted");
+		}
+
+		[HttpPost("check")]
+		public async Task<ActionResult<Rating>> IsRated(long beachId, CancellationToken token = default)
+		{
+			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+			var user = await userManager.FindByIdAsync(userId);
+			if (user == null)
+			{
+				return BadRequest("Something went wrong");
+			}
+
+			var beach = await Context.Beaches.FirstOrDefaultAsync(x => x.Id == beachId, token);
+			if (beach == null)
+			{
+				return NotFound("Beach not found");
+			}
+
+			var rating = await Context.Ratings.Where(x => x.User == user && x.Beach == beach).Select(x => new
+			{
+				x.Rate,
+				x.CreatedAt,
+			}).FirstOrDefaultAsync(token);
+
+			if (rating == null)
+			{
+				return NotFound("Beach is not rated");
+			}
+
+			return Ok(rating);
 		}
 	}
 }
