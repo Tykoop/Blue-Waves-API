@@ -16,6 +16,21 @@ namespace Esentis.BlueWaves.Persistence.Helpers
 				beach.Name,
 				beach.Coordinates.X,
 				beach.Coordinates.Y,
-				beach.Description);
+				beach.Description
+				)
+		;
+
+		public static RatingDto toDto(this Rating rating) => new RatingDto(
+			rating.Rate,
+			rating.CreatedAt,
+			rating.Beach.Name,
+			rating.Beach.Id
+		);
+
+		public static FavoriteDto toDto(this Favorite favorite) => new FavoriteDto(
+			favorite.Beach.Name,
+			favorite.Beach.Id,
+			favorite.CreatedAt
+			);
 	}
 }
