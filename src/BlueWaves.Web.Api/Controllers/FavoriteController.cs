@@ -8,9 +8,11 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 	using System.Threading.Tasks;
 
 	using Esentis.BlueWaves.Persistence;
+	using Esentis.BlueWaves.Persistence.Helpers;
 	using Esentis.BlueWaves.Persistence.Identity;
 	using Esentis.BlueWaves.Persistence.Model;
 	using Esentis.BlueWaves.Web.Api.Helpers;
+	using Esentis.BlueWaves.Web.Models;
 
 	using Microsoft.AspNetCore.Identity;
 	using Microsoft.AspNetCore.Mvc;
@@ -58,6 +60,41 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			Context.Favorites.Remove(favorite);
 			await Context.SaveChangesAsync();
 			return Ok("Beach removed from favorites");
+		}
+
+		[HttpGet("")]
+		public async Task<ActionResult<List<Rating>>> PersonalFavorites([PositiveNumberValidator] int page, [ItemPerPageValidator] int itemsPerPage)
+		{
+			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+			var user = await userManager.FindByIdAsync(userId);
+			if (user == null)
+			{
+				return BadRequest("Something went wrong");
+			}
+
+			var toSkip = itemsPerPage * (page - 1);
+			var favorites = Context.Favorites.Include(x => x.Beach)
+				.Where(x => x.User.Id == user.Id);
+			var totalFavorites = await favorites.CountAsync();
+			var pagedFavorites = await favorites
+				.Skip(toSkip)
+				.Take(itemsPerPage)
+				.ToListAsync();
+
+			var result = new PagedResult<FavoriteDto>
+			{
+				Results = pagedFavorites.Select(x => x.toDto()).ToList(),
+				Page = page,
+				TotalPages = (totalFavorites / itemsPerPage) + 1,
+				TotalElements = totalFavorites,
+			};
+
+			if (page > ((totalFavorites / itemsPerPage) + 1))
+			{
+				return BadRequest("Page doesn't exist");
+			}
+
+			return Ok(result);
 		}
 
 		[HttpPost("check")]

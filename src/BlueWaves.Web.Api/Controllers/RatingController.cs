@@ -8,6 +8,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 	using System.Threading.Tasks;
 
 	using Esentis.BlueWaves.Persistence;
+	using Esentis.BlueWaves.Persistence.Helpers;
 	using Esentis.BlueWaves.Persistence.Identity;
 	using Esentis.BlueWaves.Persistence.Model;
 	using Esentis.BlueWaves.Web.Api.Helpers;
@@ -62,7 +63,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		}
 
 		[HttpGet("")]
-		public async Task<ActionResult<List<Rating>>> PersonalRatings()
+		public async Task<ActionResult<List<Rating>>> PersonalRatings([PositiveNumberValidator] int page, [ItemPerPageValidator] int itemsPerPage)
 		{
 			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 			var user = await userManager.FindByIdAsync(userId);
@@ -71,12 +72,30 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				return BadRequest("Something went wrong");
 			}
 
-			var ratings = await Context.Ratings.Include(x => x.Beach)
+			var toSkip = itemsPerPage * (page - 1);
+			var ratings = Context.Ratings.Include(x => x.Beach)
 				.Where(x => x.User.Id == user.Id)
-				.Select(x =>
-					new { x.Beach.Name, x.Rate, x.CreatedAt, })
+				.OrderBy(x => x.CreatedAt);
+			var totalRatings = await ratings.CountAsync();
+			var pagedRatings = await ratings
+				.Skip(toSkip)
+				.Take(itemsPerPage)
 				.ToListAsync();
-			return Ok(ratings);
+			var result = new PagedResult<RatingDto>
+			{
+				Results = pagedRatings.Select(x => x.toDto()).ToList(),
+				Page = page,
+				TotalPages = (totalRatings / itemsPerPage) + 1,
+				TotalElements = totalRatings,
+			};
+
+			if (page > ((totalRatings / itemsPerPage) + 1))
+			{
+				return BadRequest("Page doesn't exist");
+			}
+
+			return Ok(result);
+
 		}
 
 		[HttpDelete("{id}")]
