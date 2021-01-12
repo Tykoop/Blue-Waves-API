@@ -1,6 +1,12 @@
 namespace Esentis.BlueWaves.Web.Models
 {
+	using System;
+
 	public record BeachDto(long Id, string Name, double Longtitude, double Latitude, string Description);
+
+	public record RatingDto(int rate, DateTimeOffset createdAt, string beachName, long beachId);
+
+	public record FavoriteDto(string beachName, long beachId, DateTimeOffset createdAt);
 
 	public record AddBeachDto(string Name, double Longtitude, double Latitude, string Description);
 
