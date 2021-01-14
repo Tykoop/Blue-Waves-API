@@ -6,6 +6,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 	using System.Linq;
 	using System.Security.Claims;
 	using System.Text;
+	using System.Threading;
 	using System.Threading.Tasks;
 
 	using Esentis.BlueWaves.Persistence;
@@ -56,9 +57,42 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				: Ok();
 		}
 
+		[HttpPost("refresh")]
+		public async Task<ActionResult> RefreshToken(RefreshTokenDto refreshTokenDto, CancellationToken cancellationToken = default)
+		{
+			if (refreshTokenDto == null)
+			{
+				return BadRequest("Invalid user");
+			}
+
+			var principal = GetPrincipalFromExpiredToken(refreshTokenDto.accessToken);
+			var userId = principal.Claims.FirstOrDefault(x => x.Type == JwtRegisteredClaimNames.Jti).ToString();
+			var user = await userManager.FindByIdAsync(userId);
+			if (user == null || user.RefreshToken != refreshTokenDto.refreshToken
+							|| user.RefreshTokenExpiration <= DateTimeOffset.UtcNow)
+			{
+				return BadRequest("Invalid user");
+			}
+
+			var accessTokenExpiration = DateTimeOffset.UtcNow.AddSeconds(10);
+			var refreshTokenExpiration = DateTimeOffset.UtcNow.AddMinutes(1);
+			var refreshToken = Guid.NewGuid().ToString();
+			user.RefreshToken = refreshToken;
+			user.RefreshTokenExpiration = refreshTokenExpiration;
+
+			await Context.SaveChangesAsync(cancellationToken);
+
+			var claims = await GenerateClaims(user);
+			var token = GenerateJwt(claims, accessTokenExpiration);
+
+			return Ok(
+				new { accesToken = token, refreshToken, });
+		}
+
 		[HttpPost("login")]
 		[AllowAnonymous]
-		public async Task<ActionResult<string>> LoginUser([FromBody] UserLoginDto userLogin)
+		public async Task<ActionResult<string>> LoginUser([FromBody] UserLoginDto userLogin,
+			CancellationToken cancellationToken = default)
 		{
 			var user = await userManager.FindByNameAsync(userLogin.UserName)
 						?? await userManager.FindByEmailAsync(userLogin.UserName);
@@ -67,10 +101,19 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				return NotFound("User not found or wrong password");
 			}
 
-			var expiration = DateTimeOffset.UtcNow.AddDays(30);
+			var accessTokenExpiration = DateTimeOffset.UtcNow.AddSeconds(10);
+			var refreshTokenExpiration = DateTimeOffset.UtcNow.AddMinutes(1);
+			var refreshToken = Guid.NewGuid().ToString();
+			user.RefreshToken = refreshToken;
+			user.RefreshTokenExpiration = refreshTokenExpiration;
+
+			await Context.SaveChangesAsync(cancellationToken);
+
 			var claims = await GenerateClaims(user);
-			var token = GenerateJwt(claims, expiration);
-			return Ok(token);
+			var token = GenerateJwt(claims, accessTokenExpiration);
+
+			return Ok(
+				new { accesToken = token, refreshToken, });
 		}
 
 		private async Task<List<Claim>> GenerateClaims(BlueWavesUser user)
@@ -98,6 +141,26 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				notBefore: DateTimeOffset.UtcNow.UtcDateTime, expires: expiration.UtcDateTime, claims: claims,
 				signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
 			return new JwtSecurityTokenHandler().WriteToken(token);
+		}
+
+		private ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
+		{
+			var tokenValidationParameters = new TokenValidationParameters
+			{
+				ValidateAudience = false, // you might want to validate the audience and issuer depending on your use case
+				ValidateIssuer = false,
+				ValidateIssuerSigningKey = true,
+				IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("veryverybigverysecretkey")),
+				ValidateLifetime = false, // here we are saying that we don't care about the token's expiration date
+			};
+			var tokenHandler = new JwtSecurityTokenHandler();
+			SecurityToken securityToken;
+			// This line crashes ! :@
+			var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out securityToken);
+			var jwtSecurityToken = securityToken as JwtSecurityToken;
+			if (jwtSecurityToken == null || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+				throw new SecurityTokenException("Invalid token");
+			return principal;
 		}
 	}
 }
