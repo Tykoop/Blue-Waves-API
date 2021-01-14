@@ -8,6 +8,8 @@ namespace Esentis.BlueWaves.Web.Models
 
 	public record FavoriteDto(string beachName, long beachId, DateTimeOffset createdAt);
 
+	public record RefreshTokenDto(string accessToken, string refreshToken);
+
 	public record AddBeachDto(string Name, double Longtitude, double Latitude, string Description);
 
 	public record AddRatingDto(int Rate, long BeachId);
