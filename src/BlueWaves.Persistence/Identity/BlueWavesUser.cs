@@ -11,9 +11,5 @@ namespace Esentis.BlueWaves.Persistence.Identity
 		public DateTimeOffset CreatedAt { get; set; }
 
 		public DateTimeOffset UpdatedAt { get; set; }
-
-		public string RefreshToken { get; set; }
-
-		public DateTimeOffset RefreshTokenExpiration { get; set; }
 	}
 }
