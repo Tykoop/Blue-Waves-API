@@ -42,27 +42,13 @@ namespace Esentis.BlueWaves.Web.Api
 			try
 			{
 				var host = CreateHostBuilder(args).Build();
-				var configuration = host.Services.GetRequiredService<IConfiguration>();
-				var environment = host.Services.GetRequiredService<IWebHostEnvironment>();
-
-				Log.Logger = new LoggerConfiguration().CreateActualLogger(configuration, environment).CreateLogger();
-				{
-					using var scope = host.Services.CreateScope();
-					await using var ctx = scope.ServiceProvider.GetRequiredService<BlueWavesDbContext>();
-					var migrations = (await ctx.Database.GetPendingMigrationsAsync()).ToList();
-
-					if (migrations.Any())
-					{
-						Log.Information(AspNetCoreLogTemplates.ApplyingMigrations, string.Join(", ", migrations));
-						await ctx.Database.MigrateAsync();
-					}
-				}
+				Log.Logger = new LoggerConfiguration()
+					.CreateActualLogger(
+						host.Services.GetRequiredService<IConfiguration>(),
+						host.Services.GetRequiredService<IHostEnvironment>())
+					.CreateLogger();
 
 				await host.RunAsync();
-			}
-			catch (InvalidOperationException e)
-			{
-				Log.Fatal(e, "Could not apply migrations");
 			}
 #pragma warning disable CA1031 // Unhandled exception, application terminated
 			catch (Exception e)
@@ -82,7 +68,8 @@ namespace Esentis.BlueWaves.Web.Api
 				.ConfigureWebHostDefaults(webBuilder =>
 				{
 					webBuilder.UseStartup<Startup>();
-				}).UseSerilog();
+				})
+				.UseSerilog();
 
 		public static LoggerConfiguration CreateBasicLogger(this LoggerConfiguration logger)
 			=> logger
@@ -102,7 +89,8 @@ namespace Esentis.BlueWaves.Web.Api
 				.WriteTo.Debug()
 				.WriteTo.Console(theme: AnsiConsoleTheme.Code);
 
-		public static LoggerConfiguration CreateActualLogger(this LoggerConfiguration logger, IConfiguration configuration, IHostEnvironment environment) =>
+		public static LoggerConfiguration CreateActualLogger(this LoggerConfiguration logger,
+			IConfiguration configuration, IHostEnvironment environment) =>
 			logger.CreateBasicLogger()
 				.Enrich.WithProperty("Application", environment.ApplicationName)
 				.Enrich.WithProperty("Environment", environment.EnvironmentName)
@@ -115,6 +103,7 @@ namespace Esentis.BlueWaves.Web.Api
 						rollingInterval: RollingInterval.Day,
 						rollOnFileSizeLimit: true,
 						retainedFileCountLimit: 10,
-						shared: true));
+						shared: true)
+					.WriteTo.Seq(serverUrl: configuration["Seq:Uri"], apiKey: configuration["Seq:ApiKey"]));
 	}
 }

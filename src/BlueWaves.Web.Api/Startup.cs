@@ -9,18 +9,29 @@ namespace Esentis.BlueWaves.Web.Api
 	using Esentis.BlueWaves.Persistence;
 	using Esentis.BlueWaves.Persistence.Helpers;
 	using Esentis.BlueWaves.Persistence.Identity;
+	using Esentis.BlueWaves.Web.Api.Helpers;
+	using Esentis.BlueWaves.Web.Api.Options;
+	using Esentis.BlueWaves.Web.Api.Services;
+
+	using Kritikos.Configuration.Persistence.Extensions;
+	using Kritikos.Configuration.Persistence.Interceptors;
+	using Kritikos.Configuration.Persistence.Services;
 
 	using Microsoft.AspNetCore.Authentication.JwtBearer;
 	using Microsoft.AspNetCore.Builder;
 	using Microsoft.AspNetCore.Hosting;
+	using Microsoft.AspNetCore.Http;
 	using Microsoft.AspNetCore.Identity;
 	using Microsoft.EntityFrameworkCore;
 	using Microsoft.EntityFrameworkCore.Diagnostics;
+	using Microsoft.Extensions.Caching.Memory;
 	using Microsoft.Extensions.Configuration;
 	using Microsoft.Extensions.DependencyInjection;
 	using Microsoft.Extensions.Hosting;
 	using Microsoft.IdentityModel.Tokens;
 	using Microsoft.OpenApi.Models;
+
+	using SendGrid;
 
 	using Swashbuckle.AspNetCore.Filters;
 	using Swashbuckle.AspNetCore.SwaggerUI;
@@ -41,8 +52,18 @@ namespace Esentis.BlueWaves.Web.Api
 		public void ConfigureServices(IServiceCollection services)
 		{
 			var isDevelopment = Environment.IsDevelopment();
-			var timeStampInterceptor = new TimeStampSaveChangesInterceptor();
-			services.AddDbContextPool<BlueWavesDbContext>(options =>
+
+			services.AddControllers().AddControllersAsServices().AddViewComponentsAsServices().AddTagHelpersAsServices();
+			services.AddMvc();
+			services.AddControllersWithViews();
+			services.Configure<JwtOptions>(options => Configuration.GetSection("JWT").Bind(options));
+
+			services.AddHttpContextAccessor();
+			services.AddScoped(sp => new AuditorProvider(sp.GetRequiredService<IHttpContextAccessor>()));
+			services.AddScoped(sp => new AuditSaveChangesInterceptor<Guid>(sp.GetRequiredService<AuditorProvider>()));
+			services.AddSingleton(sp => new TimestampSaveChangesInterceptor());
+
+			services.AddDbContext<BlueWavesDbContext>((serviceProvider, options) =>
 			{
 				options.UseNpgsql(
 						Configuration.GetConnectionString("BlueWavesApi"),
@@ -53,30 +74,34 @@ namespace Esentis.BlueWaves.Web.Api
 								.UseNetTopologySuite()
 								.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
 						})
-					.AddInterceptors(timeStampInterceptor)
-					.EnableSensitiveDataLogging(isDevelopment)
-					.EnableDetailedErrors(isDevelopment)
-					.ConfigureWarnings(warn => warn
-						.Ignore(CoreEventId.SensitiveDataLoggingEnabledWarning)
-						.Log(RelationalEventId.QueryPossibleUnintendedUseOfEqualsWarning));
+					.AddInterceptors(
+						serviceProvider.GetRequiredService<TimestampSaveChangesInterceptor>(),
+						serviceProvider.GetRequiredService<AuditSaveChangesInterceptor<Guid>>())
+					.EnableCommonOptions(Environment);
 			});
+			services.AddHostedService<MigrationService<BlueWavesDbContext>>();
+			services.AddHostedService<RefreshTokenCleanService>();
 
 			services.AddIdentity<BlueWavesUser, BlueWavesRole>(c =>
-			{
-				c.User.RequireUniqueEmail = !isDevelopment;
-				c.Password = new PasswordOptions
 				{
-					RequireDigit = !isDevelopment,
-					RequireLowercase = !isDevelopment,
-					RequireUppercase = !isDevelopment,
-					RequireNonAlphanumeric = !isDevelopment,
-					RequiredLength = isDevelopment ? 4 : 12,
-				};
-			})
+					c.User.RequireUniqueEmail = !isDevelopment;
+					c.Password = new PasswordOptions
+					{
+						RequireDigit = !isDevelopment,
+						RequireLowercase = !isDevelopment,
+						RequireUppercase = !isDevelopment,
+						RequireNonAlphanumeric = !isDevelopment,
+						RequiredLength = isDevelopment
+							? 4
+							: 12,
+					};
+				})
 				.AddEntityFrameworkStores<BlueWavesDbContext>()
-				.AddDefaultTokenProviders();
+				.AddDefaultTokenProviders()
+				.AddDefaultUI();
 
-			services.AddControllers();
+			services.AddSingleton(sp => new MemoryCache(new MemoryCacheOptions()));
+
 			services.AddSwaggerGen(c =>
 			{
 				c.SwaggerDoc("v1", new OpenApiInfo { Title = "BlueWaves.Web.Api", Version = "v1" });
@@ -87,7 +112,8 @@ namespace Esentis.BlueWaves.Web.Api
 					Scheme = "Bearer",
 					BearerFormat = "JWT",
 					In = ParameterLocation.Header,
-					Description = "Enter 'Bearer' [space] and then your valid Token in the text input below.\r\n\r\nExample: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\"",
+					Description =
+						"Enter 'Bearer' [space] and then your valid Token in the text input below.\r\n\r\nExample: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\"",
 				});
 				c.AddSecurityRequirement(new OpenApiSecurityRequirement
 				{
@@ -96,8 +122,7 @@ namespace Esentis.BlueWaves.Web.Api
 						{
 							Reference = new OpenApiReference
 							{
-								Type = ReferenceType.SecurityScheme,
-								Id = "Bearer",
+								Type = ReferenceType.SecurityScheme, Id = "Bearer",
 							},
 						},
 						Array.Empty<string>()
@@ -105,15 +130,17 @@ namespace Esentis.BlueWaves.Web.Api
 				});
 				c.DescribeAllParametersInCamelCase();
 				c.OperationFilter<AppendAuthorizeToSummaryOperationFilter>();
-				c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
+				c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory,
+					$"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
 			});
+
 			JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 			services.AddAuthentication(options =>
-			{
-				options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-				options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-				options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-			})
+				{
+					options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+					options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+					options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+				})
 				.AddJwtBearer(options =>
 				{
 					options.TokenValidationParameters = new TokenValidationParameters
@@ -150,6 +177,7 @@ namespace Esentis.BlueWaves.Web.Api
 			}
 
 			app.UseHttpsRedirection();
+			app.UseStaticFiles();
 
 			app.UseRouting();
 
@@ -167,6 +195,7 @@ namespace Esentis.BlueWaves.Web.Api
 			app.UseEndpoints(endpoints =>
 			{
 				endpoints.MapControllers();
+				endpoints.MapRazorPages();
 			});
 		}
 	}
