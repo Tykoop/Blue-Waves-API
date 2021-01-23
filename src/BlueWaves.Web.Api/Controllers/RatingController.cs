@@ -98,6 +98,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 
 		}
 
+		/*
 		[HttpDelete("{id}")]
 		public async Task<ActionResult> RemoveRating(long id)
 		{
@@ -113,6 +114,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			Logger.LogInformation(BWLogTemplates.Deleted, nameof(Rating), id);
 			return Ok("Rating successfully deleted");
 		}
+		*/
 
 		[HttpPost("check")]
 		public async Task<ActionResult<Rating>> IsRated(long beachId, CancellationToken token = default)

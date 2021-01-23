@@ -48,7 +48,8 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				return NotFound("Beach not found");
 			}
 
-			var favorite = await Context.Favorites.SingleOrDefaultAsync(x => x.Beach.Id == beachId && x.User.Id == user.Id);
+			var favorite =
+				await Context.Favorites.SingleOrDefaultAsync(x => x.Beach.Id == beachId && x.User.Id == user.Id);
 			if (favorite == null)
 			{
 				favorite = new Favorite { Beach = beach, User = user };
@@ -63,7 +64,8 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		}
 
 		[HttpGet("")]
-		public async Task<ActionResult<List<Rating>>> PersonalFavorites([PositiveNumberValidator] int page, [ItemPerPageValidator] int itemsPerPage)
+		public async Task<ActionResult<List<Rating>>> PersonalFavorites([PositiveNumberValidator] int page,
+			[ItemPerPageValidator] int itemsPerPage)
 		{
 			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 			var user = await userManager.FindByIdAsync(userId);
@@ -98,29 +100,11 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		}
 
 		[HttpPost("check")]
-		public async Task<ActionResult<Rating>> IsFavorited(long beachId, CancellationToken token = default)
+		public async Task<bool> IsFavorited(long beachId, CancellationToken token = default)
 		{
-			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-			var user = await userManager.FindByIdAsync(userId);
-			if (user == null)
-			{
-				return BadRequest("Something went wrong");
-			}
-
-			var beach = await Context.Beaches.FirstOrDefaultAsync(x => x.Id == beachId, token);
-			if (beach == null)
-			{
-				return NotFound("Beach not found");
-			}
-
-			var rating = await Context.Favorites.SingleOrDefaultAsync(x => x.User == user && x.Beach == beach);
-
-			if (rating == null)
-			{
-				return NotFound("Beach is not favorited");
-			}
-
-			return Ok("Beach is favorited");
+			var foundUser = Guid.TryParse(HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId);
+			return foundUser
+					&& await Context.Favorites.AnyAsync(x => x.Beach.Id == beachId && x.User.Id == userId, token);
 		}
 	}
 }

@@ -16,6 +16,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 	using Microsoft.AspNetCore.Identity;
 	using Microsoft.AspNetCore.Mvc;
 	using Microsoft.EntityFrameworkCore;
+	using Microsoft.Extensions.Caching.Memory;
 	using Microsoft.Extensions.Logging;
 
 	using NetTopologySuite.Geometries;
@@ -26,9 +27,10 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		private readonly UserManager<BlueWavesUser> userManager;
 
 		public BeachController(ILogger<BeachController> logger, BlueWavesDbContext ctx,
-			RoleManager<BlueWavesRole> roleManager, UserManager<BlueWavesUser> userManager)
+			RoleManager<BlueWavesRole> roleManager, UserManager<BlueWavesUser> userManager, IMemoryCache cache)
 			: base(logger, ctx)
 		{
+			cache.Set("kaitoula", 3);
 			this.userManager = userManager;
 		}
 
@@ -37,8 +39,10 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		/// </summary>
 		/// <returns></returns>
 		[HttpGet("")]
+
 		// [AllowAnonymous]
-		public async Task<ActionResult<PagedResult<BeachDto>>> GetMovies([PositiveNumberValidator] int page, [ItemPerPageValidator] int itemsPerPage)
+		public async Task<ActionResult<PagedResult<BeachDto>>> GetMovies([PositiveNumberValidator] int page,
+			[ItemPerPageValidator] int itemsPerPage)
 		{
 			var user = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 			var toSkip = itemsPerPage * (page - 1);
@@ -70,8 +74,12 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		[HttpGet("{id}")]
 		public async Task<ActionResult<Beach>> GetBeach(long id, CancellationToken token = default)
 		{
-			var beach = await Context.Beaches.SingleOrDefaultAsync(x => x.Id == id, cancellationToken: token);
-			var result = new BeachDto(Id: beach.Id, Name: beach.Name, Latitude: beach.Coordinates.X, Longtitude: beach.Coordinates.Y, Description: beach.Description);
+			var beach = await Context.Beaches
+				.TagWith("Requesting beach")
+				.SingleOrDefaultAsync(x => x.Id == id, cancellationToken: token);
+
+			var result = new BeachDto(Id: beach.Id, Name: beach.Name, Latitude: beach.Coordinates.X,
+				Longtitude: beach.Coordinates.Y, Description: beach.Description);
 			Logger.LogInformation(BWLogTemplates.RequestEntity, nameof(Beach), id);
 			return beach == null
 				? NotFound()
@@ -87,7 +95,13 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			{
 				return BadRequest("Something went wrong");
 			}
-			var beach = new Beach { Coordinates = new Point(addBeachDto.Latitude, addBeachDto.Longtitude), Name = addBeachDto.Name, Description = addBeachDto.Description, AddedBy = user };
+
+			var beach = new Beach
+			{
+				Coordinates = new Point(addBeachDto.Latitude, addBeachDto.Longtitude),
+				Name = addBeachDto.Name,
+				Description = addBeachDto.Description
+			};
 			Context.Beaches.Add(beach);
 			await Context.SaveChangesAsync();
 			return Ok(beach.toDto());
@@ -109,6 +123,16 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			await Context.SaveChangesAsync();
 			Logger.LogInformation(BWLogTemplates.Deleted, nameof(Beach), id);
 			return Ok("Beach deleted");
+		}
+
+		[HttpPost("{id}")]
+		public async Task<ActionResult> UndeleteBeach(long id)
+		{
+			var beach = await Context.Beaches
+				.IgnoreQueryFilters()
+				.SingleOrDefaultAsync(x => x.Id == id);
+
+			return Ok();
 		}
 	}
 }

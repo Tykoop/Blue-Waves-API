@@ -10,14 +10,17 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 	using System.Threading.Tasks;
 
 	using Esentis.BlueWaves.Persistence;
+	using Esentis.BlueWaves.Persistence.Helpers;
 	using Esentis.BlueWaves.Persistence.Identity;
 	using Esentis.BlueWaves.Web.Api.Helpers;
 	using Esentis.BlueWaves.Web.Api.Options;
 	using Esentis.BlueWaves.Web.Models;
 
 	using Microsoft.AspNetCore.Authorization;
+	using Microsoft.AspNetCore.Components.Forms;
 	using Microsoft.AspNetCore.Identity;
 	using Microsoft.AspNetCore.Mvc;
+	using Microsoft.EntityFrameworkCore;
 	using Microsoft.Extensions.Logging;
 	using Microsoft.Extensions.Options;
 	using Microsoft.IdentityModel.Tokens;
@@ -50,50 +53,22 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				return BadRequest(ModelState.Values.SelectMany(c => c.Errors));
 			}
 
+			// roleManager.CreateAsync(new BlueWavesRole { Name = RoleNames.Administrator });
 			var user = new BlueWavesUser { Email = userRegister.Email, UserName = userRegister.UserName, };
 			var result = await userManager.CreateAsync(user, userRegister.Password);
+
+			// await userManager.AddToRoleAsync(user, RoleNames.Administrator);
 			return !result.Succeeded
 				? Conflict(result.Errors)
 				: Ok();
 		}
 
-		[HttpPost("refresh")]
-		public async Task<ActionResult> RefreshToken(RefreshTokenDto refreshTokenDto, CancellationToken cancellationToken = default)
-		{
-			if (refreshTokenDto == null)
-			{
-				return BadRequest("Invalid user");
-			}
-
-			var principal = GetPrincipalFromExpiredToken(refreshTokenDto.accessToken);
-			var userId = principal.Claims.FirstOrDefault(x => x.Type == JwtRegisteredClaimNames.Jti).ToString();
-			var user = await userManager.FindByIdAsync(userId);
-			if (user == null || user.RefreshToken != refreshTokenDto.refreshToken
-							|| user.RefreshTokenExpiration <= DateTimeOffset.UtcNow)
-			{
-				return BadRequest("Invalid user");
-			}
-
-			var accessTokenExpiration = DateTimeOffset.UtcNow.AddSeconds(10);
-			var refreshTokenExpiration = DateTimeOffset.UtcNow.AddMinutes(1);
-			var refreshToken = Guid.NewGuid().ToString();
-			user.RefreshToken = refreshToken;
-			user.RefreshTokenExpiration = refreshTokenExpiration;
-
-			await Context.SaveChangesAsync(cancellationToken);
-
-			var claims = await GenerateClaims(user);
-			var token = GenerateJwt(claims, accessTokenExpiration);
-
-			return Ok(
-				new { accesToken = token, refreshToken, });
-		}
-
 		[HttpPost("login")]
 		[AllowAnonymous]
-		public async Task<ActionResult<string>> LoginUser([FromBody] UserLoginDto userLogin,
-			CancellationToken cancellationToken = default)
+		public async Task<ActionResult<UserBindingDto>> LoginUser([FromBody] UserLoginDto userLogin)
 		{
+			var beach = Context.Ratings.Select(e => e.Beach).ToList();
+
 			var user = await userManager.FindByNameAsync(userLogin.UserName)
 						?? await userManager.FindByEmailAsync(userLogin.UserName);
 			if (user == null || !await userManager.CheckPasswordAsync(user, userLogin.Password))
@@ -101,19 +76,54 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				return NotFound("User not found or wrong password");
 			}
 
-			var accessTokenExpiration = DateTimeOffset.UtcNow.AddSeconds(10);
-			var refreshTokenExpiration = DateTimeOffset.UtcNow.AddMinutes(1);
-			var refreshToken = Guid.NewGuid().ToString();
-			user.RefreshToken = refreshToken;
-			user.RefreshTokenExpiration = refreshTokenExpiration;
+			var device = await Context.Devices.FirstOrDefaultAsync(e => e.Name == userLogin.DeviceName);
+			if (device == null)
+			{
+				device = new Device { User = user, Name = userLogin.DeviceName };
+				Context.Devices.Add(device);
+			}
 
-			await Context.SaveChangesAsync(cancellationToken);
+			var accessTokenExpiration = DateTimeOffset.UtcNow.AddMinutes(jwtOptions.DurationInMinutes);
 
 			var claims = await GenerateClaims(user);
 			var token = GenerateJwt(claims, accessTokenExpiration);
 
-			return Ok(
-				new { accesToken = token, refreshToken, });
+			var refreshToken = Guid.NewGuid();
+			device.RefreshToken = refreshToken;
+
+			await Context.SaveChangesAsync();
+
+			var dto = new UserBindingDto(token, accessTokenExpiration, refreshToken);
+
+			return Ok(dto);
+		}
+
+		[HttpPost("refresh")]
+		[AllowAnonymous]
+		public async Task<ActionResult<UserBindingDto>> RefreshToken([FromBody] UserRefreshTokenDto dto)
+		{
+			var principal = GetPrincipalFromExpiredToken(dto.ExpiredToken);
+			var valid = Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId);
+
+			var device = await Context.Devices.Where(x => x.RefreshToken == dto.RefreshToken && x.User.Id == userId)
+				.SingleOrDefaultAsync();
+			if (device
+				== null)
+			{
+				return NotFound();
+			}
+
+			var user = await userManager.FindByIdAsync(userId.ToString());
+			var accessTokenExpiration = DateTimeOffset.UtcNow.AddMinutes(jwtOptions.DurationInMinutes);
+
+			var claims = await GenerateClaims(user);
+			var token = GenerateJwt(claims, accessTokenExpiration);
+			device.RefreshToken = Guid.NewGuid();
+			await Context.SaveChangesAsync();
+
+			var result = new UserBindingDto(token, accessTokenExpiration, device.RefreshToken);
+
+			return Ok(result);
 		}
 
 		private async Task<List<Claim>> GenerateClaims(BlueWavesUser user)
@@ -136,9 +146,13 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 
 		private string GenerateJwt(ICollection<Claim> claims, DateTimeOffset expiration)
 		{
-			var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("veryverybigverysecretkey"));
-			var token = new JwtSecurityToken(issuer: "BlueWaves", audience: "BlueWaves",
-				notBefore: DateTimeOffset.UtcNow.UtcDateTime, expires: expiration.UtcDateTime, claims: claims,
+			var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key));
+			var token = new JwtSecurityToken(
+				issuer: jwtOptions.Issuer,
+				audience: jwtOptions.Audience,
+				notBefore: DateTimeOffset.UtcNow.UtcDateTime,
+				expires: expiration.UtcDateTime,
+				claims: claims,
 				signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
 			return new JwtSecurityTokenHandler().WriteToken(token);
 		}
@@ -147,19 +161,25 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		{
 			var tokenValidationParameters = new TokenValidationParameters
 			{
-				ValidateAudience = false, // you might want to validate the audience and issuer depending on your use case
-				ValidateIssuer = false,
+				ValidateAudience = true,
+				ValidAudience = jwtOptions.Audience,
+				ValidateIssuer = true,
+				ValidIssuer = jwtOptions.Issuer,
 				ValidateIssuerSigningKey = true,
-				IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("veryverybigverysecretkey")),
-				ValidateLifetime = false, // here we are saying that we don't care about the token's expiration date
+				IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
+				ValidateLifetime = false,
 			};
+
 			var tokenHandler = new JwtSecurityTokenHandler();
-			SecurityToken securityToken;
-			// This line crashes ! :@
-			var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out securityToken);
+			var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
 			var jwtSecurityToken = securityToken as JwtSecurityToken;
-			if (jwtSecurityToken == null || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+			if (jwtSecurityToken == null ||
+				!jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256,
+					StringComparison.InvariantCultureIgnoreCase))
+			{
 				throw new SecurityTokenException("Invalid token");
+			}
+
 			return principal;
 		}
 	}
