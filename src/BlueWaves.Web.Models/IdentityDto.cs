@@ -15,5 +15,10 @@ namespace Esentis.BlueWaves.Web.Models
 
 	public record UserLoginDto(
 		[Required] string UserName,
-		[Required][PasswordPropertyText] string Password);
+		[Required][PasswordPropertyText] string Password,
+		[Required] string DeviceName);
+
+	public record UserBindingDto(string AccessToken, DateTimeOffset ExpiresIn, Guid RefreshToken);
+
+	public record UserRefreshTokenDto(string ExpiredToken, Guid RefreshToken);
 }
