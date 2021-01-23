@@ -12,5 +12,9 @@ namespace Esentis.BlueWaves.Web.Api.Options
 		public string Audience { get; set; }
 
 		public string Key { get; set; }
+
+		public int DurationInMinutes { get; set; }
+
+		public int RefreshTokenDurationInDays { get; set; }
 	}
 }
