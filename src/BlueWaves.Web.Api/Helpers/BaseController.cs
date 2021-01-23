@@ -3,6 +3,7 @@ namespace Esentis.BlueWaves.Web.Api.Helpers
 	using System;
 	using System.Collections.Generic;
 	using System.Linq;
+	using System.Security.Claims;
 	using System.Threading.Tasks;
 
 	using Esentis.BlueWaves.Persistence;
@@ -14,7 +15,7 @@ namespace Esentis.BlueWaves.Web.Api.Helpers
 	[ApiController]
 	[Authorize]
 	public abstract class BaseController<T> : ControllerBase
-	where T : BaseController<T>
+		where T : BaseController<T>
 	{
 
 		protected BaseController(ILogger<T> logger, BlueWavesDbContext ctx)
@@ -26,5 +27,12 @@ namespace Esentis.BlueWaves.Web.Api.Helpers
 		protected ILogger<T> Logger { get; init; }
 
 		protected BlueWavesDbContext Context { get; init; }
+		// HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty
+
+		protected Guid RetreiveUserId() =>
+			Guid.TryParse(HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var guid)
+				? guid
+				: Guid.Empty;
+
 	}
 }
