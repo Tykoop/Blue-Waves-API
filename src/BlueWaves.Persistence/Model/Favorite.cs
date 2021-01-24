@@ -3,11 +3,12 @@ namespace Esentis.BlueWaves.Persistence.Model
 	using System;
 
 	using Esentis.BlueWaves.Persistence.Base;
+	using Esentis.BlueWaves.Persistence.Helpers;
 	using Esentis.BlueWaves.Persistence.Identity;
 
 	using Kritikos.Configuration.Persistence.Abstractions;
 
-	public class Favorite : ITimestamped
+	public class Favorite : ITimestamped, IDeletable
 	{
 		public Beach Beach { get; set; }
 
@@ -19,6 +20,12 @@ namespace Esentis.BlueWaves.Persistence.Model
 
 		/// <inheritdoc />
 		public DateTimeOffset UpdatedAt { get; set; }
+		#endregion
+
+		#region Implementation of IDeletable
+
+		/// <inheritdoc />
+		public bool IsDeleted { get; set; }
 		#endregion
 	}
 }
