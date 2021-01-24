@@ -53,10 +53,15 @@ namespace Esentis.BlueWaves.Persistence
 				});
 			});
 
+			builder.Entity<Device>(entity => entity.HasQueryFilter(x => !x.IsDeleted));
+
+			builder.Entity<BlueWavesUser>(entity => entity.HasQueryFilter(x => !x.IsDeleted));
+
 			builder.Entity<Beach>(entity => entity.HasQueryFilter(x => !x.IsDeleted));
 
 			builder.Entity<Favorite>(entity =>
 			{
+				entity.HasQueryFilter(x => !x.IsDeleted);
 				entity.HasOne(e => e.User).WithMany().HasForeignKey("UserId");
 				entity.HasOne(e => e.Beach).WithMany().HasForeignKey("BeachId");
 				entity.HasKey("UserId", "BeachId");
@@ -64,6 +69,7 @@ namespace Esentis.BlueWaves.Persistence
 
 			builder.Entity<Rating>(entity =>
 			{
+				entity.HasQueryFilter(x => !x.IsDeleted);
 				entity.HasOne(e => e.User).WithMany().HasForeignKey("UserId");
 				entity.HasOne(e => e.Beach).WithMany().HasForeignKey("BeachId");
 				entity.HasKey("UserId", "BeachId");
