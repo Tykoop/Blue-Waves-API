@@ -29,7 +29,7 @@ namespace Esentis.BlueWaves.Web.Api.Helpers
 		protected BlueWavesDbContext Context { get; init; }
 		// HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty
 
-		protected Guid RetreiveUserId() =>
+		protected Guid RetrieveUserId() =>
 			Guid.TryParse(HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var guid)
 				? guid
 				: Guid.Empty;
