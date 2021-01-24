@@ -57,7 +57,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			var user = new BlueWavesUser { Email = userRegister.Email, UserName = userRegister.UserName, };
 			var result = await userManager.CreateAsync(user, userRegister.Password);
 
-			// await userManager.AddToRoleAsync(user, RoleNames.Administrator);
+			await userManager.AddToRoleAsync(user, RoleNames.Administrator);
 			return !result.Succeeded
 				? Conflict(result.Errors)
 				: Ok();
@@ -67,8 +67,6 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		[AllowAnonymous]
 		public async Task<ActionResult<UserBindingDto>> LoginUser([FromBody] UserLoginDto userLogin)
 		{
-			var beach = Context.Ratings.Select(e => e.Beach).ToList();
-
 			var user = await userManager.FindByNameAsync(userLogin.UserName)
 						?? await userManager.FindByEmailAsync(userLogin.UserName);
 			if (user == null || !await userManager.CheckPasswordAsync(user, userLogin.Password))
@@ -96,6 +94,48 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			var dto = new UserBindingDto(token, accessTokenExpiration, refreshToken);
 
 			return Ok(dto);
+		}
+
+		[HttpPost("delete")]
+		public async Task<ActionResult> DeleteUser()
+		{
+			var userId = RetrieveUserId();
+			if (userId == Guid.Empty)
+			{
+				return BadRequest("User not found");
+			}
+
+			var user = await userManager.FindByIdAsync(userId.ToString());
+			if (user == null)
+			{
+				return BadRequest("User not found");
+			}
+
+			user.IsDeleted = true;
+			await Context.Devices.Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = true);
+			await Context.Ratings.Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = true);
+			await Context.Favorites.Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = true);
+			await Context.SaveChangesAsync();
+			return Ok("User deleted");
+		}
+
+		[HttpPost("restore")]
+		[AllowAnonymous]
+		public async Task<ActionResult> RestoreUser(UserRestoreDto dto)
+		{
+			var user = await Context.Users.IgnoreQueryFilters()
+				.FirstOrDefaultAsync(x => x.IsDeleted && x.Email == dto.Email && x.UserName == dto.UserName);
+			if (user == null)
+			{
+				return BadRequest("Something went wrong.");
+			}
+
+			user.IsDeleted = false;
+			await Context.Devices.IgnoreQueryFilters().Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = false);
+			await Context.Ratings.IgnoreQueryFilters().Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = false);
+			await Context.Favorites.IgnoreQueryFilters().Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = false);
+			await Context.SaveChangesAsync();
+			return Ok("Account restored succesfully, you can now login back.");
 		}
 
 		[HttpPost("refresh")]
