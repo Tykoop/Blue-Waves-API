@@ -31,10 +31,49 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			this.userManager = userManager;
 		}
 
-		[HttpPost("")]
-		public async Task<ActionResult> ToggleFavorite(long beachId, CancellationToken token = default)
+		[HttpPost("add")]
+		public async Task<ActionResult> AddFavorite(long beachId, CancellationToken token = default)
 		{
-			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+			var userId = RetrieveUserId().ToString();
+			var user = await userManager.FindByIdAsync(userId);
+			if (user == null)
+			{
+				return BadRequest("Something went wrong");
+			}
+
+			var beach = await Context.Beaches.SingleOrDefaultAsync(x => x.Id == beachId);
+			if (beach == null)
+			{
+				Logger.LogInformation(BWLogTemplates.NotFound, nameof(Beach));
+				return NotFound("Beach not found");
+			}
+
+			var favorite =
+				await Context.Favorites.IgnoreQueryFilters().SingleOrDefaultAsync(x => x.Beach.Id == beachId && x.User.Id == user.Id);
+			if (favorite == null)
+			{
+				favorite = new Favorite { Beach = beach, User = user };
+				await Context.Favorites.AddAsync(favorite, token);
+				await Context.SaveChangesAsync();
+				return Ok("Beach added to favorites");
+			}
+
+			if (favorite.IsDeleted)
+			{
+				favorite.IsDeleted = false;
+				await Context.SaveChangesAsync();
+				return Ok("Beach added to favorites");
+			}
+
+			Context.Favorites.Add(favorite);
+			await Context.SaveChangesAsync();
+			return Ok("Beach added to favorites");
+		}
+
+		[HttpDelete("delete")]
+		public async Task<ActionResult> RemoveFavorite(long beachId, CancellationToken token = default)
+		{
+			var userId = RetrieveUserId().ToString();
 			var user = await userManager.FindByIdAsync(userId);
 			if (user == null)
 			{
@@ -52,22 +91,19 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				await Context.Favorites.SingleOrDefaultAsync(x => x.Beach.Id == beachId && x.User.Id == user.Id);
 			if (favorite == null)
 			{
-				favorite = new Favorite { Beach = beach, User = user };
-				await Context.Favorites.AddAsync(favorite, token);
-				await Context.SaveChangesAsync();
-				return Ok("Beach added to favorites");
+				return BadRequest("Beach not found");
 			}
 
-			Context.Favorites.Remove(favorite);
+			favorite.IsDeleted = true;
 			await Context.SaveChangesAsync();
-			return Ok("Beach removed from favorites");
+			return Ok("Favorited deleted");
 		}
 
 		[HttpGet("")]
 		public async Task<ActionResult<List<Rating>>> PersonalFavorites([PositiveNumberValidator] int page,
 			[ItemPerPageValidator] int itemsPerPage)
 		{
-			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+			var userId = RetrieveUserId().ToString();
 			var user = await userManager.FindByIdAsync(userId);
 			if (user == null)
 			{

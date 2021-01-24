@@ -36,7 +36,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		[HttpPost("add")]
 		public async Task<ActionResult> AddRating(AddRatingDto addRatingDto, CancellationToken token = default)
 		{
-			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+			var userId = RetrieveUserId().ToString();
 			var user = await userManager.FindByIdAsync(userId);
 			if (user == null)
 			{
@@ -49,23 +49,57 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				return NotFound("Beach not found");
 			}
 
-			var hasRated = await Context.Ratings.AnyAsync(x => x.User == user && x.Beach == beach, token);
-			if (hasRated)
+			var rating = await Context.Ratings.IgnoreQueryFilters()
+				.SingleOrDefaultAsync(x => x.User == user && x.Beach == beach, token);
+
+			// If user is trying to add a rating that he has already added and deleted recently
+			if (rating != null && rating.IsDeleted && rating.Rate == addRatingDto.Rate)
 			{
-				return BadRequest("You have already rated the beach");
+				rating.IsDeleted = false;
+				await Context.SaveChangesAsync(token);
+				return Ok("Beach rated");
 			}
 
-			var rating = new Rating { Beach = beach, User = user, Rate = addRatingDto.Rate };
-			await Context.Ratings.AddAsync(rating, cancellationToken: token);
+			rating = new Rating { Beach = beach, User = user, Rate = addRatingDto.Rate };
+			Context.Ratings.Add(rating);
 
-			await Context.SaveChangesAsync(cancellationToken: token);
+			await Context.SaveChangesAsync(token);
 			return Ok("Beach successfuly rated");
+		}
+
+		[HttpDelete("delete")]
+		public async Task<ActionResult> RemoveRating(long beachId, CancellationToken token = default)
+		{
+			var userId = RetrieveUserId().ToString();
+			var user = await userManager.FindByIdAsync(userId);
+			if (user == null)
+			{
+				return BadRequest("Something went wrong");
+			}
+
+			var beach = await Context.Beaches.SingleOrDefaultAsync(x => x.Id == beachId);
+			if (beach == null)
+			{
+				Logger.LogInformation(BWLogTemplates.NotFound, nameof(Beach));
+				return NotFound("Beach not found");
+			}
+
+			var rating =
+				await Context.Ratings.SingleOrDefaultAsync(x => x.Beach.Id == beachId && x.User.Id == user.Id);
+			if (rating == null)
+			{
+				return BadRequest("Beach not found");
+			}
+
+			rating.IsDeleted = true;
+			await Context.SaveChangesAsync();
+			return Ok("Favorited deleted");
 		}
 
 		[HttpGet("")]
 		public async Task<ActionResult<List<Rating>>> PersonalRatings([PositiveNumberValidator] int page, [ItemPerPageValidator] int itemsPerPage)
 		{
-			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+			var userId = RetrieveUserId().ToString();
 			var user = await userManager.FindByIdAsync(userId);
 			if (user == null)
 			{
@@ -98,52 +132,22 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 
 		}
 
-		/*
-		[HttpDelete("{id}")]
-		public async Task<ActionResult> RemoveRating(long id)
-		{
-			var rating = await Context.Ratings.SingleOrDefaultAsync(x => x.Id == id);
-			if (rating == null)
-			{
-				Logger.LogInformation(BWLogTemplates.NotFound, nameof(Rating));
-				return NotFound("Rating not found");
-			}
-
-			Context.Ratings.Remove(rating);
-			await Context.SaveChangesAsync();
-			Logger.LogInformation(BWLogTemplates.Deleted, nameof(Rating), id);
-			return Ok("Rating successfully deleted");
-		}
-		*/
-
 		[HttpPost("check")]
-		public async Task<ActionResult<Rating>> IsRated(long beachId, CancellationToken token = default)
+		public async Task<ActionResult<int>> GetRating(long beachId, CancellationToken token = default)
 		{
-			var userId = HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-			var user = await userManager.FindByIdAsync(userId);
-			if (user == null)
+			var foundUser = Guid.TryParse(HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId);
+			if (foundUser)
 			{
-				return BadRequest("Something went wrong");
+				var rating = await Context.Ratings.Where(x => x.Beach.Id == beachId && x.User.Id == userId).Select(x => x.Rate).FirstOrDefaultAsync();
+				if (rating == 0)
+				{
+					return -1;
+				}
+
+				return rating;
 			}
 
-			var beach = await Context.Beaches.FirstOrDefaultAsync(x => x.Id == beachId, token);
-			if (beach == null)
-			{
-				return NotFound("Beach not found");
-			}
-
-			var rating = await Context.Ratings.Where(x => x.User == user && x.Beach == beach).Select(x => new
-			{
-				x.Rate,
-				x.CreatedAt,
-			}).FirstOrDefaultAsync(token);
-
-			if (rating == null)
-			{
-				return NotFound("Beach is not rated");
-			}
-
-			return Ok(rating);
+			return BadRequest("Something went wrong");
 		}
 	}
 }

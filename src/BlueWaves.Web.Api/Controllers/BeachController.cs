@@ -30,7 +30,7 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			RoleManager<BlueWavesRole> roleManager, UserManager<BlueWavesUser> userManager, IMemoryCache cache)
 			: base(logger, ctx)
 		{
-			cache.Set("kaitoula", 3);
+			//cache.Set("kaitoula", 3);
 			this.userManager = userManager;
 		}
 
@@ -117,9 +117,10 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				return NotFound("Beach not found");
 			}
 
-			// Removes all ratings associated with the Beach
-			Context.Ratings.RemoveRange(Context.Ratings.Where(x => x.Beach == beach));
-			Context.Beaches.Remove(beach);
+			// Flags all ratings and favorites associated with the Beach, for deletion
+			await Context.Ratings.Where(x => x.Beach == beach).ForEachAsync(x => x.IsDeleted = true);
+			await Context.Favorites.Where(x => x.Beach == beach).ForEachAsync(x => x.IsDeleted = true);
+			beach.IsDeleted = true;
 			await Context.SaveChangesAsync();
 			Logger.LogInformation(BWLogTemplates.Deleted, nameof(Beach), id);
 			return Ok("Beach deleted");
