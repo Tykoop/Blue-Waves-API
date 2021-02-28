@@ -1,0 +1,20 @@
+parameters:
+- name: configuration
+  type: string
+  default: $(BuildConfiguration)
+- name: publishWeb
+  type: boolean
+  default: false
+- name: outputPath
+  type: string
+  default: $(build.artifactStagingDirectory)/publish
+
+steps:
+- task: DotNetCoreCLI@2
+  displayName: Publishes project
+  inputs:
+    command: 'publish'
+    projects: '**/src/**/*.csproj'
+    configuration: ${{ parameters.configuration }}
+    arguments: '--no-restore --no-build --no-self-contained --nologo -o ${{ parameters.outputPath }}'
+    publishWebProjects: ${{ parameters.publishWeb }}

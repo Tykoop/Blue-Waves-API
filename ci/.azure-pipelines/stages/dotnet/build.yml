@@ -1,0 +1,50 @@
+parameters:
+- name: image
+  type: string
+  default: ubuntu-latest
+- name: sdkVersion
+  default: '5.x'
+  type: string
+- name: configuration
+  type: string
+  default: $(BuildConfiguration)
+- name: buildArgs
+  type: string
+  default: ''
+- name: publishWeb
+  type: boolean
+  default: false
+- name: outputPath
+  type: string
+  default: $(build.artifactStagingDirectory)/publish
+- name: artifactName
+  type: string
+- name: pathToPublish
+  type: string
+  default: $(build.artifactStagingDirectory)/publish
+
+stages:
+- stage: Build
+  displayName: Build artifacts
+  dependsOn: Version
+  jobs:
+    - template: ../../jobs/dotnet/build.yml
+      parameters:
+        image: ubuntu-latest
+        sdkVersion: ${{ parameters.sdkVersion }}
+        configuration: ${{ parameters.configuration }}
+        buildArgs: ${{ parameters.buildArgs }}
+        publishWeb: ${{ parameters.publishWeb }}
+        outputPath: ${{ parameters.outputPath }}
+        artifactName: ${{ parameters.artifactName }}
+        pathToPublish: ${{ parameters.pathToPublish }}
+    - template: ../../jobs/dotnet/build.yml
+      parameters:
+        image: windows-latest
+        sdkVersion: ${{ parameters.sdkVersion }}
+        configuration: ${{ parameters.configuration }}
+        buildArgs: ${{ parameters.buildArgs }}
+        publishWeb: ${{ parameters.publishWeb }}
+        outputPath: ${{ parameters.outputPath }}
+        artifactName: ${{ parameters.artifactName }}
+        pathToPublish: ${{ parameters.pathToPublish }}

@@ -1,0 +1,48 @@
+parameters:
+- name: image
+  type: string
+  default: ubuntu-latest
+- name: sdkVersion
+  default: '5.x'
+  type: string
+- name: configuration
+  type: string
+  default: $(BuildConfiguration)
+- name: buildArgs
+  type: string
+  default: ''
+- name: publishWeb
+  type: boolean
+  default: false
+- name: outputPath
+  type: string
+  default: $(build.artifactStagingDirectory)/publish
+- name: artifactName
+  type: string
+- name: pathToPublish
+  type: string
+  default: $(build.artifactStagingDirectory)/publish
+
+jobs:
+- job:
+  displayName: on ${{ parameters.image }}
+  steps:
+  - checkout: self
+    fetchDepth: 1
+  - template: ../../steps/dotnet/install-sdk.yml
+    parameters:
+      sdkVersion: ${{ parameters.sdkVersion }}
+  - template: ../../steps/dotnet/restore.yml
+  - template: ../../steps/dotnet/build.yml
+    parameters:
+      configuration: ${{ parameters.configuration }}
+      buildArgs: ${{ parameters.buildArgs }}
+  - template: ../../steps/dotnet/publish.yml
+    parameters:
+      configuration: ${{ parameters.configuration }}
+      publishWeb: ${{ parameters.publishWeb }}
+      outputPath: ${{ parameters.outputPath }}
+  - template: ../../steps/general/publish-artifact.yml
+    parameters:
+      artifactName: ${{ parameters.artifactName }}-${{ parameters.image }}
+      pathToPublish: ${{ parameters.pathToPublish }}

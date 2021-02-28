@@ -28,3 +28,4 @@ pool:
 
 stages:
   - template: ci/.azure-pipelines/stages/general/semver.yml
+  - template: ci/.azure-pipelines/stages/dotnet/build.yml

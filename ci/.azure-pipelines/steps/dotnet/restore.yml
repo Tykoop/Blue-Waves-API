@@ -1,0 +1,8 @@
+steps:
+- task: DotNetCoreCLI@2
+  displayName: Restores nugets
+  inputs:
+    command: 'restore'
+    arguments: '--locked-mode --nologo'
+    restoreDirectory: '$(Pipeline.Workspace)/.nuget/packages'
+    verbosityRestore: minimal
