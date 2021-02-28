@@ -33,7 +33,7 @@ stages:
       sdkVersion: '5.x'
       configuration: 'Release'
       buildArgs: ''
-      publishWeb: false
+      publishWeb: true
       outputPath: $(build.artifactStagingDirectory)/publish
       artifactName: BlueWavesAPI
       pathToPublish: $(build.artifactStagingDirectory)/publish
