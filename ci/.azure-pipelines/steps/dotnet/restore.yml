@@ -5,4 +5,6 @@ steps:
     command: 'restore'
     arguments: '--locked-mode --nologo'
     restoreDirectory: '$(Pipeline.Workspace)/.nuget/packages'
+    feedsToUse: 'config'
+    nugetConfigPath: 'NuGet.Config'
     verbosityRestore: minimal
