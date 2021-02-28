@@ -29,3 +29,11 @@ pool:
 stages:
   - template: ci/.azure-pipelines/stages/general/semver.yml
   - template: ci/.azure-pipelines/stages/dotnet/build.yml
+    parameters:
+      sdkVersion: '5.x'
+      configuration: 'Release'
+      buildArgs: ''
+      publishWeb: false
+      outputPath: $(build.artifactStagingDirectory)/publish
+      artifactName: BlueWavesAPI
+      pathToPublish: $(build.artifactStagingDirectory)/publish
