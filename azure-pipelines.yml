@@ -1,0 +1,30 @@
+resources:
+  repositories:
+    - repository: self
+      checkoutOptions:
+        submodules: true
+        lfs: true
+
+trigger:
+  batch: true
+  branches:
+    include:
+      - master
+      - develop
+      - feature/*
+      - bugfix/*
+      - release/*
+  paths:
+    include:
+      - src/*
+      - tests/*
+      - azure-pipelines.yml
+
+variables:
+  - group: API Keys
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - template: ci/.azure-pipelines/stages/general/semver.yml
