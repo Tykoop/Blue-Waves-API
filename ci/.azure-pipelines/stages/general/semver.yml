@@ -8,4 +8,4 @@ stages:
         parameters:
           toolName: gitversion.tool
       - pwsh: ../dotnet-gitversion /output buildserver
-        display: Set SemVer from git history
+        displayName: Set SemVer from git history
