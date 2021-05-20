@@ -1,10 +1,5 @@
 namespace Esentis.BlueWaves.Web.Api.Options
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using System.Threading.Tasks;
-
 	public class JwtOptions
 	{
 		public string Issuer { get; set; }

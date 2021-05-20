@@ -2,22 +2,18 @@ namespace Esentis.BlueWaves.Web.Api
 {
 	using System;
 	using System.IO;
-	using System.Linq;
 	using System.Reflection;
 	using System.Threading.Tasks;
 
 	using Esentis.BlueWaves.Persistence;
-	using Esentis.BlueWaves.Persistence.Model;
 
+	using Kritikos.Configuration.Persistence.Extensions;
 	using Kritikos.StructuredLogging.Templates;
 
 	using Microsoft.AspNetCore.Hosting;
-	using Microsoft.EntityFrameworkCore;
 	using Microsoft.Extensions.Configuration;
 	using Microsoft.Extensions.DependencyInjection;
 	using Microsoft.Extensions.Hosting;
-
-	using NetTopologySuite.Geometries;
 
 	using Serilog;
 	using Serilog.Core;
@@ -47,7 +43,7 @@ namespace Esentis.BlueWaves.Web.Api
 						host.Services.GetRequiredService<IConfiguration>(),
 						host.Services.GetRequiredService<IHostEnvironment>())
 					.CreateLogger();
-
+				await host.MigrateAsync<BlueWavesDbContext>();
 				await host.RunAsync();
 			}
 #pragma warning disable CA1031 // Unhandled exception, application terminated

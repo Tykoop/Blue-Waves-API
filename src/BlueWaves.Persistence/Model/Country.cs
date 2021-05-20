@@ -1,18 +1,12 @@
 namespace Esentis.BlueWaves.Persistence.Model
 {
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using System.Text;
-	using System.Threading.Tasks;
+	using Esentis.BlueWaves.Persistence.Helpers;
 
-	using Esentis.BlueWaves.Persistence.Base;
-
-	public class Country : Entity<long>
+	public class Country : BlueWavesEntity<long>
 	{
 		public string Name { get; set; }
 
-		public string Code { get; set; }
+		public string Iso { get; set; }
 
 		public string Currency { get; set; }
 

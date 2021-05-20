@@ -2,22 +2,15 @@ namespace Esentis.BlueWaves.Persistence.Identity
 {
 	using System;
 
-	using Esentis.BlueWaves.Persistence.Helpers;
-
-	using Kritikos.Configuration.Persistence.Abstractions;
+	using Kritikos.Configuration.Persistence.Contracts.Behavioral;
 
 	using Microsoft.AspNetCore.Identity;
 
-	public class BlueWavesUser : IdentityUser<Guid>, IEntity<Guid>, ITimestamped, IDeletable
+	public class BlueWavesUser : IdentityUser<Guid>, IEntity<Guid>, ITimestamped
 	{
-		public DateTimeOffset CreatedAt { get; set; }
+		public DateTime CreatedAt { get; set; }
 
-		public DateTimeOffset UpdatedAt { get; set; }
+		public DateTime UpdatedAt { get; set; }
 
-		#region Implementation of IDeletable
-
-		/// <inheritdoc />
-		public bool IsDeleted { get; set; }
-		#endregion
 	}
 }

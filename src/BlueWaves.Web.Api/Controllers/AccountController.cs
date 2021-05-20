@@ -16,8 +16,9 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 	using Esentis.BlueWaves.Web.Api.Options;
 	using Esentis.BlueWaves.Web.Models;
 
+	using Kritikos.PureMap.Contracts;
+
 	using Microsoft.AspNetCore.Authorization;
-	using Microsoft.AspNetCore.Components.Forms;
 	using Microsoft.AspNetCore.Identity;
 	using Microsoft.AspNetCore.Mvc;
 	using Microsoft.EntityFrameworkCore;
@@ -35,15 +36,23 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		private readonly JwtOptions jwtOptions;
 
 		public AccountController(ILogger<AccountController> logger, BlueWavesDbContext ctx,
-			RoleManager<BlueWavesRole> roleManager, UserManager<BlueWavesUser> userManager,
+			RoleManager<BlueWavesRole> roleManager, UserManager<BlueWavesUser> userManager, IPureMapper mapper,
 			IOptions<JwtOptions> options)
-			: base(logger, ctx)
+			: base(logger, ctx, mapper)
 		{
 			this.roleManager = roleManager;
 			this.userManager = userManager;
 			jwtOptions = options.Value;
 		}
 
+		/// <summary>
+		/// Register User.
+		/// </summary>
+		/// <param name="userRegister">Registration information.</param>
+		/// <response code="204">Added successfully.</response>
+		/// <response code="400">Validation errors.</response>
+		/// <response code="409">User already exists.</response>
+		/// <returns>No Content.</returns>
 		[HttpPost("")]
 		[AllowAnonymous]
 		public async Task<ActionResult> RegisterUser([FromBody] UserRegisterDto userRegister)
@@ -60,9 +69,17 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			await userManager.AddToRoleAsync(user, RoleNames.Administrator);
 			return !result.Succeeded
 				? Conflict(result.Errors)
-				: Ok();
+				: NoContent();
 		}
 
+		/// <summary>
+		/// Login User.
+		/// </summary>
+		/// <param name="userLogin">Login information.</param>
+		/// <response code="200">Returns tokens.</response>
+		/// <response code="400">Validation errors.</response>
+		/// <response code="404">User not found or wrong password.</response>
+		/// <returns><see cref="UserBindingDto"/>.</returns>
 		[HttpPost("login")]
 		[AllowAnonymous]
 		public async Task<ActionResult<UserBindingDto>> LoginUser([FromBody] UserLoginDto userLogin)
@@ -74,7 +91,8 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 				return NotFound("User not found or wrong password");
 			}
 
-			var device = await Context.Devices.FirstOrDefaultAsync(e => e.Name == userLogin.DeviceName);
+			var device = await Context.Devices.FirstOrDefaultAsync(e =>
+				e.Name == userLogin.DeviceName && e.User.UserName == userLogin.UserName);
 			if (device == null)
 			{
 				device = new Device { User = user, Name = userLogin.DeviceName };
@@ -96,48 +114,47 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			return Ok(dto);
 		}
 
+		/// <summary>
+		/// Delete User.
+		/// </summary>
+		/// <response code="204">User deleted.</response>
+		/// <response code="404">User not found.</response>
+		/// <returns><see cref="UserBindingDto"/>.</returns>
 		[HttpPost("delete")]
-		public async Task<ActionResult> DeleteUser()
+		public async Task<ActionResult> DeleteUser(CancellationToken token = default)
 		{
 			var userId = RetrieveUserId();
 			if (userId == Guid.Empty)
 			{
-				return BadRequest("User not found");
+				return NotFound("User not found");
 			}
 
 			var user = await userManager.FindByIdAsync(userId.ToString());
 			if (user == null)
 			{
-				return BadRequest("User not found");
+				return NotFound("User not found");
 			}
 
-			user.IsDeleted = true;
-			await Context.Devices.Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = true);
-			await Context.Ratings.Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = true);
-			await Context.Favorites.Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = true);
-			await Context.SaveChangesAsync();
-			return Ok("User deleted");
+			var devices = await Context.Devices.Where(x => x.User == user).ToListAsync(token);
+			var ratings = await Context.Ratings.Where(x => x.User == user).ToListAsync(token);
+			var favorites = await Context.Favorites.Where(x => x.User == user).ToListAsync(token);
+
+			Context.Devices.RemoveRange(devices);
+			Context.Ratings.RemoveRange(ratings);
+			Context.Favorites.RemoveRange(favorites);
+
+			await userManager.DeleteAsync(user);
+			await Context.SaveChangesAsync(token);
+			return NoContent();
 		}
 
-		[HttpPost("restore")]
-		[AllowAnonymous]
-		public async Task<ActionResult> RestoreUser(UserRestoreDto dto)
-		{
-			var user = await Context.Users.IgnoreQueryFilters()
-				.FirstOrDefaultAsync(x => x.IsDeleted && x.Email == dto.Email && x.UserName == dto.UserName);
-			if (user == null)
-			{
-				return BadRequest("Something went wrong.");
-			}
-
-			user.IsDeleted = false;
-			await Context.Devices.IgnoreQueryFilters().Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = false);
-			await Context.Ratings.IgnoreQueryFilters().Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = false);
-			await Context.Favorites.IgnoreQueryFilters().Where(x => x.User == user).ForEachAsync(x => x.IsDeleted = false);
-			await Context.SaveChangesAsync();
-			return Ok("Account restored succesfully, you can now login back.");
-		}
-
+		/// <summary>
+		/// Refreshes user's access token.
+		/// </summary>
+		/// <response code="200">Returns new access token.</response>
+		/// <response code="401">User not authorized.</response>
+		/// <response code="404">Device not found.</response>
+		/// <returns><see cref="UserBindingDto"/>.</returns>
 		[HttpPost("refresh")]
 		[AllowAnonymous]
 		public async Task<ActionResult<UserBindingDto>> RefreshToken([FromBody] UserRefreshTokenDto dto)

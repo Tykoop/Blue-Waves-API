@@ -1,12 +1,11 @@
 namespace Esentis.BlueWaves.Web.Api.Helpers
 {
 	using System;
-	using System.Collections.Generic;
-	using System.Linq;
 	using System.Security.Claims;
-	using System.Threading.Tasks;
 
 	using Esentis.BlueWaves.Persistence;
+
+	using Kritikos.PureMap.Contracts;
 
 	using Microsoft.AspNetCore.Authorization;
 	using Microsoft.AspNetCore.Mvc;
@@ -18,16 +17,18 @@ namespace Esentis.BlueWaves.Web.Api.Helpers
 		where T : BaseController<T>
 	{
 
-		protected BaseController(ILogger<T> logger, BlueWavesDbContext ctx)
+		protected BaseController(ILogger<T> logger, BlueWavesDbContext ctx,IPureMapper mapper)
 		{
 			Logger = logger;
 			Context = ctx;
+			Mapper = mapper;
 		}
 
 		protected ILogger<T> Logger { get; init; }
 
 		protected BlueWavesDbContext Context { get; init; }
-		// HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty
+
+		protected IPureMapper Mapper { get; init; }
 
 		protected Guid RetrieveUserId() =>
 			Guid.TryParse(HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier), out var guid)

@@ -14,8 +14,10 @@ namespace Esentis.BlueWaves.Web.Api
 	using Esentis.BlueWaves.Web.Api.Services;
 
 	using Kritikos.Configuration.Persistence.Extensions;
-	using Kritikos.Configuration.Persistence.Interceptors;
-	using Kritikos.Configuration.Persistence.Services;
+	using Kritikos.Configuration.Persistence.Interceptors.SaveChanges;
+	using Kritikos.Configuration.Persistence.Interceptors.Services;
+	using Kritikos.PureMap;
+	using Kritikos.PureMap.Contracts;
 
 	using Microsoft.AspNetCore.Authentication.JwtBearer;
 	using Microsoft.AspNetCore.Builder;
@@ -23,15 +25,12 @@ namespace Esentis.BlueWaves.Web.Api
 	using Microsoft.AspNetCore.Http;
 	using Microsoft.AspNetCore.Identity;
 	using Microsoft.EntityFrameworkCore;
-	using Microsoft.EntityFrameworkCore.Diagnostics;
 	using Microsoft.Extensions.Caching.Memory;
 	using Microsoft.Extensions.Configuration;
 	using Microsoft.Extensions.DependencyInjection;
 	using Microsoft.Extensions.Hosting;
 	using Microsoft.IdentityModel.Tokens;
 	using Microsoft.OpenApi.Models;
-
-	using SendGrid;
 
 	using Swashbuckle.AspNetCore.Filters;
 	using Swashbuckle.AspNetCore.SwaggerUI;
@@ -53,15 +52,21 @@ namespace Esentis.BlueWaves.Web.Api
 		{
 			var isDevelopment = Environment.IsDevelopment();
 
-			services.AddControllers().AddControllersAsServices().AddViewComponentsAsServices().AddTagHelpersAsServices();
+			services.AddControllers()
+				.AddControllersAsServices()
+				.AddViewComponentsAsServices()
+				.AddTagHelpersAsServices();
 			services.AddMvc();
 			services.AddControllersWithViews();
 			services.Configure<JwtOptions>(options => Configuration.GetSection("JWT").Bind(options));
+			services.AddSingleton<IPureMapper>(sp => new PureMapper(MappingConfiguration.Mapping));
 
 			services.AddHttpContextAccessor();
-			services.AddScoped(sp => new AuditorProvider(sp.GetRequiredService<IHttpContextAccessor>()));
-			services.AddScoped(sp => new AuditSaveChangesInterceptor<Guid>(sp.GetRequiredService<AuditorProvider>()));
-			services.AddSingleton(sp => new TimestampSaveChangesInterceptor());
+
+			services.AddSingleton<AuditSaveChangesInterceptor<Guid>>();
+			services.AddSingleton<TimestampSaveChangesInterceptor>();
+			services.AddSingleton<IAuditorProvider<Guid>>(sp =>
+				new AuditorProvider(sp.GetRequiredService<IHttpContextAccessor>()));
 
 			services.AddDbContext<BlueWavesDbContext>((serviceProvider, options) =>
 			{
@@ -79,7 +84,6 @@ namespace Esentis.BlueWaves.Web.Api
 						serviceProvider.GetRequiredService<AuditSaveChangesInterceptor<Guid>>())
 					.EnableCommonOptions(Environment);
 			});
-			services.AddHostedService<MigrationService<BlueWavesDbContext>>();
 			services.AddHostedService<RefreshTokenCleanService>();
 
 			services.AddIdentity<BlueWavesUser, BlueWavesRole>(c =>

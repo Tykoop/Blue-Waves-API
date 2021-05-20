@@ -1,18 +1,22 @@
 namespace Esentis.BlueWaves.Web.Api.Controllers
 {
 	using System;
-	using System.Collections.Generic;
 	using System.Linq;
 	using System.Security.Claims;
 	using System.Threading;
 	using System.Threading.Tasks;
 
 	using Esentis.BlueWaves.Persistence;
-	using Esentis.BlueWaves.Persistence.Helpers;
 	using Esentis.BlueWaves.Persistence.Identity;
 	using Esentis.BlueWaves.Persistence.Model;
 	using Esentis.BlueWaves.Web.Api.Helpers;
 	using Esentis.BlueWaves.Web.Models;
+	using Esentis.BlueWaves.Web.Models.Dto;
+	using Esentis.Ieemdb.Web.Models.SearchCriteria;
+
+	using Kritikos.Extensions.Linq;
+	using Kritikos.PureMap;
+	using Kritikos.PureMap.Contracts;
 
 	using Microsoft.AspNetCore.Identity;
 	using Microsoft.AspNetCore.Mvc;
@@ -25,12 +29,18 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 		private readonly UserManager<BlueWavesUser> userManager;
 
 		public FavoriteController(ILogger<FavoriteController> logger, BlueWavesDbContext ctx,
-			RoleManager<BlueWavesRole> roleManager, UserManager<BlueWavesUser> userManager)
-			: base(logger, ctx)
-		{
+			RoleManager<BlueWavesRole> roleManager, UserManager<BlueWavesUser> userManager, IPureMapper mapper)
+			: base(logger, ctx, mapper) =>
 			this.userManager = userManager;
-		}
 
+		/// <summary>
+		/// Add a Beach to Favorites.
+		/// </summary>
+		/// <param name="beachId">Beach's unique ID.</param>
+		/// <response code="204">Added to favorites.</response>
+		/// <response code="401">User not authorized.</response>
+		/// <response code="404">User not found. Beach not found.</response>
+		/// <returns>No Content.</returns>
 		[HttpPost("add")]
 		public async Task<ActionResult> AddFavorite(long beachId, CancellationToken token = default)
 		{
@@ -38,10 +48,10 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			var user = await userManager.FindByIdAsync(userId);
 			if (user == null)
 			{
-				return BadRequest("Something went wrong");
+				return NotFound("User not found");
 			}
 
-			var beach = await Context.Beaches.SingleOrDefaultAsync(x => x.Id == beachId);
+			var beach = await Context.Beaches.SingleOrDefaultAsync(x => x.Id == beachId, token);
 			if (beach == null)
 			{
 				Logger.LogInformation(BWLogTemplates.NotFound, nameof(Beach));
@@ -49,27 +59,36 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			}
 
 			var favorite =
-				await Context.Favorites.IgnoreQueryFilters().SingleOrDefaultAsync(x => x.Beach.Id == beachId && x.User.Id == user.Id);
+				await Context.Favorites.IgnoreQueryFilters()
+					.SingleOrDefaultAsync(x => x.Beach.Id == beachId && x.User.Id == user.Id, token);
 			if (favorite == null)
 			{
 				favorite = new Favorite { Beach = beach, User = user };
 				await Context.Favorites.AddAsync(favorite, token);
-				await Context.SaveChangesAsync();
-				return Ok("Beach added to favorites");
+				await Context.SaveChangesAsync(token);
+				return NoContent();
 			}
 
 			if (favorite.IsDeleted)
 			{
 				favorite.IsDeleted = false;
-				await Context.SaveChangesAsync();
-				return Ok("Beach added to favorites");
+				await Context.SaveChangesAsync(token);
+				return NoContent();
 			}
 
 			Context.Favorites.Add(favorite);
-			await Context.SaveChangesAsync();
-			return Ok("Beach added to favorites");
+			await Context.SaveChangesAsync(token);
+			return NoContent();
 		}
 
+		/// <summary>
+		/// Deletes a Favorite.
+		/// </summary>
+		/// <param name="beachId">Beach's unique ID.</param>
+		/// <response code="204">Removed from favorites.</response>
+		/// <response code="401">User not authorized.</response>
+		/// <response code="404">User not found. Beach not found. Favorite not found.</response>
+		/// <returns>No Content.</returns>
 		[HttpDelete("delete")]
 		public async Task<ActionResult> RemoveFavorite(long beachId, CancellationToken token = default)
 		{
@@ -77,10 +96,10 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			var user = await userManager.FindByIdAsync(userId);
 			if (user == null)
 			{
-				return BadRequest("Something went wrong");
+				return NotFound("User went wrong");
 			}
 
-			var beach = await Context.Beaches.SingleOrDefaultAsync(x => x.Id == beachId);
+			var beach = await Context.Beaches.SingleOrDefaultAsync(x => x.Id == beachId, token);
 			if (beach == null)
 			{
 				Logger.LogInformation(BWLogTemplates.NotFound, nameof(Beach));
@@ -88,53 +107,61 @@ namespace Esentis.BlueWaves.Web.Api.Controllers
 			}
 
 			var favorite =
-				await Context.Favorites.SingleOrDefaultAsync(x => x.Beach.Id == beachId && x.User.Id == user.Id);
+				await Context.Favorites.SingleOrDefaultAsync(x => x.Beach.Id == beachId && x.User.Id == user.Id, token);
 			if (favorite == null)
 			{
-				return BadRequest("Beach not found");
+				return NotFound("Favorite not found");
 			}
 
 			favorite.IsDeleted = true;
-			await Context.SaveChangesAsync();
+			await Context.SaveChangesAsync(token);
 			return Ok("Favorited deleted");
 		}
 
-		[HttpGet("")]
-		public async Task<ActionResult<List<Rating>>> PersonalFavorites([PositiveNumberValidator] int page,
-			[ItemPerPageValidator] int itemsPerPage)
+		/// <summary>
+		/// Returns User's personal favorites.
+		/// </summary>
+		/// <param name="criteria">Paging criteria.</param>
+		/// <response code="200">List of favorites.</response>
+		/// <response code="401">User not authorized.</response>
+		/// <response code="404">User not found. Beach not found. Favorite not found.</response>
+		/// <returns>List of <see cref="FavoriteDto"/>.</returns>
+		[HttpPost("personal")]
+		public async Task<ActionResult<PagedResult<FavoriteDto>>> PersonalFavorites(PaginationCriteria criteria,
+			CancellationToken token = default)
 		{
 			var userId = RetrieveUserId().ToString();
 			var user = await userManager.FindByIdAsync(userId);
 			if (user == null)
 			{
-				return BadRequest("Something went wrong");
+				return NotFound("User not found");
 			}
 
-			var toSkip = itemsPerPage * (page - 1);
 			var favorites = Context.Favorites.Include(x => x.Beach)
-				.Where(x => x.User.Id == user.Id);
-			var totalFavorites = await favorites.CountAsync();
-			var pagedFavorites = await favorites
-				.Skip(toSkip)
-				.Take(itemsPerPage)
-				.ToListAsync();
+				.Where(x => x.User.Id == user.Id)
+				.OrderBy(x => x.Id);
+
+			var totalFavorites = await favorites.CountAsync(token);
+
+			var slice = await favorites.Slice(criteria.Page, criteria.ItemsPerPage)
+				.Project<Favorite, FavoriteDto>(Mapper)
+				.ToListAsync(token);
 
 			var result = new PagedResult<FavoriteDto>
 			{
-				Results = pagedFavorites.Select(x => x.toDto()).ToList(),
-				Page = page,
-				TotalPages = (totalFavorites / itemsPerPage) + 1,
+				Results = slice,
+				Page = criteria.Page,
+				TotalPages = (totalFavorites / criteria.ItemsPerPage) + 1,
 				TotalElements = totalFavorites,
 			};
-
-			if (page > ((totalFavorites / itemsPerPage) + 1))
-			{
-				return BadRequest("Page doesn't exist");
-			}
-
 			return Ok(result);
 		}
 
+		/// <summary>
+		/// Checks whether user has already favorited a Beach.
+		/// </summary>
+		/// <param name="beachId">Beach's unique ID.</param>
+		/// <returns>True or False.</returns>
 		[HttpPost("check")]
 		public async Task<bool> IsFavorited(long beachId, CancellationToken token = default)
 		{

@@ -1,16 +1,14 @@
 namespace Esentis.BlueWaves.Persistence.Model
 {
-	using System;
+	using System.Collections.Generic;
 
-	using Esentis.BlueWaves.Persistence.Base;
 	using Esentis.BlueWaves.Persistence.Helpers;
-	using Esentis.BlueWaves.Persistence.Identity;
 
-	using Kritikos.Configuration.Persistence.Abstractions;
+	using Kritikos.Configuration.Persistence.Contracts.Behavioral;
 
 	using NetTopologySuite.Geometries;
 
-	public class Beach : Entity<long>, IAuditable<Guid>, IDeletable
+	public class Beach : BlueWavesEntity<long>, ISoftDeletable
 	{
 		public string Name { get; set; }
 
@@ -20,15 +18,14 @@ namespace Esentis.BlueWaves.Persistence.Model
 
 		public Country Country { get; set; }
 
-		#region Implementation of IAuditable<Guid>
-		public Guid CreatedBy { get; set; }
-
-		public Guid UpdatedBy { get; set; }
-		#endregion
-		#region Implementation of IDeletable
-
-		/// <inheritdoc />
 		public bool IsDeleted { get; set; }
-		#endregion
+
+		public double AverageRating { get; set; }
+
+		public IReadOnlyCollection<Rating> Ratings { get; set; }
+			= new List<Rating>(0);
+
+		public IReadOnlyCollection<Image> Images { get; set; }
+			= new List<Image>(0);
 	}
 }

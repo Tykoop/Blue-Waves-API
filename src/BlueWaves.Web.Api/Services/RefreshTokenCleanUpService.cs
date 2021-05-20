@@ -8,9 +8,6 @@ namespace Esentis.BlueWaves.Web.Api.Services
 	using Esentis.BlueWaves.Persistence;
 	using Esentis.BlueWaves.Web.Api.Options;
 
-	using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
-	using Microsoft.EntityFrameworkCore;
-	using Microsoft.EntityFrameworkCore.Metadata.Internal;
 	using Microsoft.Extensions.DependencyInjection;
 	using Microsoft.Extensions.Hosting;
 	using Microsoft.Extensions.Logging;
